@@ -120,6 +120,7 @@ st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}*
 
 
 
+
     
 
 
