@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 import numpy as np
 
 # Set title for the app
@@ -25,8 +26,8 @@ df.rename(columns={
     'Existence of chronic diseases - Hypertension': 'Hypertension'
 }, inplace=True)
 
-# Initialize geolocator
-geolocator = Nominatim(user_agent="geoapiExercises", timeout=10)
+# Initialize geolocator with a higher timeout to prevent connection issues
+geolocator = Nominatim(user_agent="geoapiExercises", timeout=30)
 
 # Function to get coordinates
 def get_coordinates(location):
@@ -36,18 +37,22 @@ def get_coordinates(location):
             return loc.latitude, loc.longitude
         else:
             return None, None
+    except GeocoderTimedOut:
+        st.error(f"Timeout error when geocoding {location}")
+        return None, None
     except Exception as e:
         st.error(f"Error geocoding {location}: {e}")
         return None, None
 
-# Get unique districts and initialize coordinates
+# Geocode each district with a progress bar
 districts = df['refArea'].unique()
 coords = []
 
-# Geocode each district with a progress bar
 geocode_progress = st.progress(0)
 for i, district in enumerate(districts):
     lat, lon = get_coordinates(district)
+    if lat is None or lon is None:
+        lat, lon = 33.8938, 35.5018  # Default to Lebanon center if geocoding fails
     coords.append({'District': district, 'Latitude': lat, 'Longitude': lon})
     geocode_progress.progress((i + 1) / len(districts))
 
@@ -56,10 +61,6 @@ coords_df = pd.DataFrame(coords)
 
 # Merge with original data
 df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
-
-# Handle missing coordinates by setting them to default (Lebanon's central latitude/longitude)
-df['Latitude'] = df['Latitude'].fillna(33.8938)  # Default to Lebanon's latitude
-df['Longitude'] = df['Longitude'].fillna(35.5018)  # Default to Lebanon's longitude
 
 # Optional: Apply a small jitter to avoid overlapping circles
 df['Latitude'] = df['Latitude'] + np.random.uniform(-0.01, 0.01, size=len(df))
@@ -71,6 +72,9 @@ selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
 
 # Filter the dataset based on selected areas
 filtered_data = df[df['refArea'].isin(selected_areas)]
+
+# Ensure all coordinates are valid
+filtered_data = filtered_data[filtered_data['Latitude'].notna() & filtered_data['Longitude'].notna()]
 
 # Create a scatter mapbox plot
 fig = px.scatter_mapbox(
@@ -88,7 +92,7 @@ fig = px.scatter_mapbox(
     },
     title="COVID-19 Cases by District and Diabetes Status",
     mapbox_style="carto-positron",  # Mapbox style
-    zoom=6,  # Adjust zoom level
+    zoom=7,  # Adjust zoom level for Lebanon
     center={"lat": 33.8938, "lon": 35.5018}  # Center on Lebanon
 )
 
@@ -101,6 +105,7 @@ st.plotly_chart(fig)
 # Additional metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
