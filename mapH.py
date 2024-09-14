@@ -3,6 +3,7 @@ import pandas as pd
 import folium
 from folium import plugins
 from geopy.geocoders import Nominatim
+import plotly.express as px
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -24,6 +25,9 @@ df.rename(columns={
     'Existence of chronic diseases - Cardiovascular disease ': 'Cardiovascular Disease',
     'Existence of chronic diseases - Hypertension': 'Hypertension'
 }, inplace=True)
+
+# Ensure 'Diabetes' column is treated as strings
+df['Diabetes'] = df['Diabetes'].astype(str)
 
 # Initialize geolocator
 geolocator = Nominatim(user_agent="geoapiExercises")
@@ -171,6 +175,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
 # Additional Metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
