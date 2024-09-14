@@ -1,8 +1,5 @@
 import streamlit as st
 import pandas as pd
-import folium
-from folium import plugins
-from geopy.geocoders import Nominatim
 import plotly.express as px
 
 # Set title for the app
@@ -29,40 +26,9 @@ df.rename(columns={
 # Ensure 'Diabetes' column is treated as strings
 df['Diabetes'] = df['Diabetes'].astype(str)
 
-# Initialize geolocator
-geolocator = Nominatim(user_agent="geoapiExercises")
-
-# Function to get coordinates
-def get_coordinates(location):
-    try:
-        loc = geolocator.geocode(location, timeout=10)  # Increase timeout if needed
-        if loc:
-            return loc.latitude, loc.longitude
-        else:
-            return None, None
-    except Exception as e:
-        st.error(f"Error geocoding {location}: {e}")
-        return None, None
-
-# Get unique districts
-districts = df['refArea'].unique()
-coords = []
-
-# Geocode each district
-for district in districts:
-    lat, lon = get_coordinates(district)
-    if lat is None or lon is None:
-        lat, lon = 33.8938, 35.5018  # Default to Lebanon center if geocoding fails
-    coords.append({'District': district, 'Latitude': lat, 'Longitude': lon})
-
-# Create a DataFrame for coordinates
-coords_df = pd.DataFrame(coords)
-
-# Merge with original data
-df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
-
-# Filter out rows with missing coordinates
-df = df.dropna(subset=['Latitude', 'Longitude'])
+# Convert the location names to coordinates (for visualization)
+df['Latitude'] = df['Latitude'].fillna(33.8938)  # Default latitude if missing
+df['Longitude'] = df['Longitude'].fillna(35.5018)  # Default longitude if missing
 
 # Sidebar: Select Areas
 areas = df['refArea'].unique()
@@ -74,26 +40,28 @@ show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=Fals
 # Filter the dataset based on selected areas
 filtered_data = df[df['refArea'].isin(selected_areas)]
 
-# Create a map
-m = folium.Map(location=[33.8938, 35.5018], zoom_start=8)
+# Create a map using Plotly
+fig_map = px.scatter_mapbox(
+    filtered_data,
+    lat='Latitude',
+    lon='Longitude',
+    color='Diabetes',
+    size='Nb of Covid-19 cases',
+    hover_name='refArea',
+    hover_data={'Latitude': False, 'Longitude': False},
+    color_discrete_map={'Yes': 'red', 'No': 'green'},
+    title="COVID-19 Cases in Lebanon by Area and Diabetes Status",
+    template='plotly_dark',
+    size_max=30
+)
 
-# Add circles for each district
-for _, row in filtered_data.iterrows():
-    folium.Circle(
-        location=[row['Latitude'], row['Longitude']],
-        radius=row['Nb of Covid-19 cases'] * 100,  # Adjust radius as needed
-        color='red' if row['Diabetes'].strip() == 'Yes' else 'green',
-        fill=True,
-        fill_opacity=0.6,
-        popup=f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases\nDiabetes: {row['Diabetes'].strip()}"
-    ).add_to(m)
-
-# Add sidebar for map
-st.sidebar.subheader("Map Controls")
-st.sidebar.markdown("Use the controls to adjust the map view.")
+fig_map.update_layout(
+    mapbox_style="open-street-map",
+    margin={"r":0,"t":0,"l":0,"b":0}
+)
 
 # Display the map
-st.write(m)
+st.plotly_chart(fig_map)
 
 # Aggregate data for bar and pie charts
 agg_data = filtered_data.groupby('refArea').agg({
@@ -175,6 +143,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
 # Additional Metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
