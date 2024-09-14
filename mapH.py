@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
+import numpy as np
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -39,26 +40,30 @@ def get_coordinates(location):
         st.error(f"Error geocoding {location}: {e}")
         return None, None
 
-# Get unique governorates and initialize coordinates
-governorates = df['refArea'].unique()
+# Get unique districts and initialize coordinates
+districts = df['refArea'].unique()
 coords = []
 
-# Geocode each governorate with a progress bar
+# Geocode each district with a progress bar
 geocode_progress = st.progress(0)
-for i, governorate in enumerate(governorates):
-    lat, lon = get_coordinates(governorate)
-    coords.append({'Governorate': governorate, 'Latitude': lat, 'Longitude': lon})
-    geocode_progress.progress((i + 1) / len(governorates))
+for i, district in enumerate(districts):
+    lat, lon = get_coordinates(district)
+    coords.append({'District': district, 'Latitude': lat, 'Longitude': lon})
+    geocode_progress.progress((i + 1) / len(districts))
 
 # Create a DataFrame for coordinates
 coords_df = pd.DataFrame(coords)
 
 # Merge with original data
-df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
+df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
 
 # Handle missing coordinates by setting them to default (Lebanon's central latitude/longitude)
 df['Latitude'] = df['Latitude'].fillna(33.8938)  # Default to Lebanon's latitude
 df['Longitude'] = df['Longitude'].fillna(35.5018)  # Default to Lebanon's longitude
+
+# Optional: Apply a small jitter to avoid overlapping circles
+df['Latitude'] = df['Latitude'] + np.random.uniform(-0.01, 0.01, size=len(df))
+df['Longitude'] = df['Longitude'] + np.random.uniform(-0.01, 0.01, size=len(df))
 
 # Sidebar: Select Areas
 areas = df['refArea'].unique()
@@ -96,6 +101,7 @@ st.plotly_chart(fig)
 # Additional metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
