@@ -6,7 +6,7 @@ from geopy.geocoders import Nominatim
 # Set title for the app
 st.title("Health Data in Lebanon")
 
-# Load and display the dataset
+# Load the dataset
 data_load_state = st.text('Loading data...')
 url = "https://raw.githubusercontent.com/naa142/HealthLebanon/main/4a0321bc971cc2f793d3367fd0b55a34_20240905_102823.csv"
 df = pd.read_csv(url)
@@ -25,7 +25,7 @@ df.rename(columns={
 }, inplace=True)
 
 # Initialize geolocator
-geolocator = Nominatim(user_agent="geoapiExercises")
+geolocator = Nominatim(user_agent="geoapiExercises", timeout=10)
 
 # Function to get coordinates
 def get_coordinates(location):
@@ -39,14 +39,16 @@ def get_coordinates(location):
         st.error(f"Error geocoding {location}: {e}")
         return None, None
 
-# Get unique governorates
+# Get unique governorates and initialize coordinates
 governorates = df['refArea'].unique()
 coords = []
 
-# Geocode each governorate
-for governorate in governorates:
+# Geocode each governorate with a progress bar
+geocode_progress = st.progress(0)
+for i, governorate in enumerate(governorates):
     lat, lon = get_coordinates(governorate)
     coords.append({'Governorate': governorate, 'Latitude': lat, 'Longitude': lon})
+    geocode_progress.progress((i + 1) / len(governorates))
 
 # Create a DataFrame for coordinates
 coords_df = pd.DataFrame(coords)
@@ -54,14 +56,14 @@ coords_df = pd.DataFrame(coords)
 # Merge with original data
 df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
 
-# Ensure missing coordinates are set to (0, 0) or a default lat/lon
-df['Latitude'] = df['Latitude'].fillna(0)
-df['Longitude'] = df['Longitude'].fillna(0)
+# Handle missing coordinates by setting them to default (0, 0) for map display purposes
+df['Latitude'] = df['Latitude'].fillna(33.8938)  # Default to Lebanon's latitude
+df['Longitude'] = df['Longitude'].fillna(35.5018)  # Default to Lebanon's longitude
 
 # Check if any rows are missing coordinates and print them for debugging
-missing_coords = df[df['Latitude'] == 0]
+missing_coords = df[df['Latitude'] == 33.8938]
 if not missing_coords.empty:
-    st.warning("Some districts are missing coordinates and are set to (0, 0):")
+    st.warning("Some districts are missing proper coordinates and are set to Lebanon's default coordinates:")
     st.write(missing_coords[['refArea', 'Latitude', 'Longitude']])
 
 # Sidebar: Select Areas
@@ -85,23 +87,16 @@ fig = px.scatter_mapbox(
     center={"lat": 33.8938, "lon": 35.5018}  # Center map on Lebanon
 )
 
-# Update layout for better readability
-fig.update_layout(
-    title_font_size=20,
-    plot_bgcolor='white',
-    paper_bgcolor='white',
-    margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
-)
-
 # Add Mapbox access token (replace 'your_mapbox_access_token' with your actual token)
 fig.update_layout(mapbox_accesstoken='your_mapbox_access_token')
 
 # Display the map in Streamlit
 st.plotly_chart(fig)
 
-# Additional analysis or metrics
+# Additional metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
