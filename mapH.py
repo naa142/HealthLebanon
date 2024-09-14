@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import folium
 from folium import plugins
+from geopy.geocoders import Nominatim
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -12,19 +13,49 @@ url = "https://raw.githubusercontent.com/naa142/HealthLebanon/main/4a0321bc971cc
 df = pd.read_csv(url)
 data_load_state.text("Data loaded!")
 
-# Define a dictionary with predefined coordinates
-coordinates = {
-    'Mount_Lebanon_Governorate': (33.8333, 35.8333),
-    'South_Governorate': (33.375, 35.3667),
-    'Akkar_Governorate': (34.5, 36.0),
-    'North_Governorate': (34.4333, 35.8333),
-    'Beqaa_Governorate': (33.7333, 35.6667),
-    # Add other districts and their coordinates here
-}
+# Option to show the dataset
+if st.checkbox('Show data'):
+    st.write("Dataset Overview:")
+    st.dataframe(df)
 
-# Add coordinates to the dataframe
-df['Latitude'] = df['refArea'].map(lambda x: coordinates.get(x, (33.8938, 35.5018))[0])
-df['Longitude'] = df['refArea'].map(lambda x: coordinates.get(x, (33.8938, 35.5018))[1])
+# Rename columns for ease of use
+df.rename(columns={
+    'Existence of chronic diseases - Diabetes ': 'Diabetes',
+    'Existence of chronic diseases - Cardiovascular disease ': 'Cardiovascular Disease',
+    'Existence of chronic diseases - Hypertension': 'Hypertension'
+}, inplace=True)
+
+# Initialize geolocator
+geolocator = Nominatim(user_agent="geoapiExercises")
+
+# Function to get coordinates
+def get_coordinates(location):
+    try:
+        loc = geolocator.geocode(location, timeout=10)  # Increase timeout if needed
+        if loc:
+            return loc.latitude, loc.longitude
+        else:
+            return None, None
+    except Exception as e:
+        st.error(f"Error geocoding {location}: {e}")
+        return None, None
+
+# Get unique districts
+districts = df['refArea'].unique()
+coords = []
+
+# Geocode each district
+for district in districts:
+    lat, lon = get_coordinates(district)
+    if lat is None or lon is None:
+        lat, lon = 33.8938, 35.5018  # Default to Lebanon center if geocoding fails
+    coords.append({'District': district, 'Latitude': lat, 'Longitude': lon})
+
+# Create a DataFrame for coordinates
+coords_df = pd.DataFrame(coords)
+
+# Merge with original data
+df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
 
 # Filter out rows with missing coordinates
 df = df.dropna(subset=['Latitude', 'Longitude'])
@@ -33,26 +64,114 @@ df = df.dropna(subset=['Latitude', 'Longitude'])
 areas = df['refArea'].unique()
 selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
 
+# Sidebar: Toggle percentage display on pie chart
+show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
+
 # Filter the dataset based on selected areas
 filtered_data = df[df['refArea'].isin(selected_areas)]
 
-# Create a base map
+# Create a map
 m = folium.Map(location=[33.8938, 35.5018], zoom_start=8)
 
-# Add markers for each location
+# Add circles for each district
 for _, row in filtered_data.iterrows():
-    folium.CircleMarker(
+    folium.Circle(
         location=[row['Latitude'], row['Longitude']],
-        radius=row['Nb of Covid-19 cases'] / 100,  # Adjust radius scale
-        color='red' if row['Diabetes'] == 'Yes' else 'green',
+        radius=row['Nb of Covid-19 cases'] * 100,  # Adjust radius as needed
+        color='red' if row['Diabetes'].strip() == 'Yes' else 'green',
         fill=True,
-        fill_color='red' if row['Diabetes'] == 'Yes' else 'green',
         fill_opacity=0.6,
-        popup=folium.Popup(f"{row['refArea']} - Cases: {row['Nb of Covid-19 cases']}", max_width=300)
+        popup=f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases\nDiabetes: {row['Diabetes'].strip()}"
     ).add_to(m)
 
-# Render map in Streamlit
-st.folium_static(m)
+# Add sidebar for map
+st.sidebar.subheader("Map Controls")
+st.sidebar.markdown("Use the controls to adjust the map view.")
+
+# Display the map
+st.write(m)
+
+# Aggregate data for bar and pie charts
+agg_data = filtered_data.groupby('refArea').agg({
+    'Nb of Covid-19 cases': 'sum',
+    'Diabetes': 'first'
+}).reset_index()
+
+# Bar Chart: COVID-19 Cases by Area
+fig_bar = px.bar(
+    agg_data,
+    x='refArea',
+    y='Nb of Covid-19 cases',
+    title="COVID-19 Cases by Area",
+    labels={'refArea': 'Area', 'Nb of Covid-19 cases': 'Number of Cases'},
+    template='plotly_dark'
+)
+fig_bar.update_traces(texttemplate='%{y}', textposition='outside', hoverinfo='x+y')
+fig_bar.update_layout(transition_duration=500)
+
+# Pie Chart: Distribution of Cases by Area
+fig_pie = px.pie(
+    agg_data,
+    values='Nb of Covid-19 cases',
+    names='refArea',
+    title="COVID-19 Case Distribution by Area",
+    template='plotly_dark',
+    color_discrete_sequence=px.colors.qualitative.Set1
+)
+
+# Handle percentage display based on checkbox
+if show_percentage:
+    total_cases = agg_data['Nb of Covid-19 cases'].sum()
+    agg_data['Percentage'] = (agg_data['Nb of Covid-19 cases'] / total_cases) * 100
+    hover_text = agg_data.apply(
+        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
+    )
+    fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
+else:
+    hover_text = agg_data.apply(
+        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
+    )
+    fig_pie.update_traces(hovertext=hover_text, textinfo='none')
+
+# Optional: Explode sections of the pie chart for selected areas
+fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_data['refArea']])
+
+# Display the Bar Chart
+st.plotly_chart(fig_bar)
+
+# Display the Pie Chart
+st.plotly_chart(fig_pie)
+
+# Treemap: COVID-19 Cases by Town in each Area and Diabetes Status
+if 'Town' in df.columns and 'Diabetes' in df.columns:
+    
+    # Filter data for treemap and remove rows where 'Nb of Covid-19 cases' is 0 or missing
+    treemap_data = filtered_data[filtered_data['Nb of Covid-19 cases'] > 0].copy()
+    
+    # Check if there are still rows left after filtering
+    if not treemap_data.empty:
+        # Group and aggregate the data
+        treemap_data = treemap_data.groupby(['refArea', 'Town', 'Diabetes']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
+
+        # Create Treemap
+        fig_treemap = px.treemap(
+            treemap_data,
+            path=['refArea', 'Town', 'Diabetes'],
+            values='Nb of Covid-19 cases',
+            color='Diabetes',
+            color_discrete_map={'Yes': 'red', 'No': 'green'},
+            title="COVID-19 Cases by Town, Area, and Diabetes Status",
+            template='plotly_dark'
+        )
+        fig_treemap.update_traces(root_color='white')
+        st.plotly_chart(fig_treemap)
+    else:
+        st.warning("No COVID-19 cases available for the selected areas.")
+    
+# Additional Metric: Display total number of cases for selected areas
+total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
+st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
