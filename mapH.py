@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
+from time import sleep
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -27,7 +28,7 @@ df.rename(columns={
 # Initialize geolocator
 geolocator = Nominatim(user_agent="geoapiExercises")
 
-# Function to get coordinates
+# Function to get coordinates with a delay
 def get_coordinates(location):
     try:
         loc = geolocator.geocode(location, timeout=10)  # Increase timeout if needed
@@ -37,6 +38,7 @@ def get_coordinates(location):
             return None, None
     except Exception as e:
         st.error(f"Error geocoding {location}: {e}")
+        sleep(1)  # Add delay to avoid hitting rate limits
         return None, None
 
 # Get unique districts
@@ -185,6 +187,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
 # Additional Metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
