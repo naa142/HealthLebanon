@@ -1,6 +1,5 @@
 import pandas as pd
 import folium
-from folium import MarkerCluster
 import streamlit as st
 
 # Load the main dataset
@@ -31,9 +30,6 @@ df = df.dropna(subset=['Latitude', 'Longitude'])
 areas = df['refArea'].unique()
 selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
 
-# Sidebar: Toggle percentage display on pie chart
-show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
-
 # Filter the dataset based on selected areas
 filtered_data = df[df['refArea'].isin(selected_areas)]
 
@@ -41,9 +37,6 @@ filtered_data = df[df['refArea'].isin(selected_areas)]
 map_center = [33.8938, 35.5018]  # Center of Lebanon
 map_zoom = 8
 m = folium.Map(location=map_center, zoom_start=map_zoom)
-
-# Marker cluster
-marker_cluster = MarkerCluster().add_to(m)
 
 # Add markers to the map
 for _, row in filtered_data.iterrows():
@@ -56,94 +49,11 @@ for _, row in filtered_data.iterrows():
         fill_color=color,
         fill_opacity=0.6,
         popup=f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases\nDiabetes: {row['Diabetes']}"
-    ).add_to(marker_cluster)
+    ).add_to(m)
 
 # Display the map in Streamlit
 st.write("### COVID-19 Cases Map")
 st.components.v1.html(m._repr_html_(), height=600)
-
-# Aggregate data for bar and pie charts
-agg_data = filtered_data.groupby('refArea').agg({
-    'Nb of Covid-19 cases': 'sum',
-    'Diabetes': 'first'
-}).reset_index()
-
-# Bar Chart: COVID-19 Cases by Area
-import plotly.express as px
-
-fig_bar = px.bar(
-    agg_data,
-    x='refArea',
-    y='Nb of Covid-19 cases',
-    title="COVID-19 Cases by Area",
-    labels={'refArea': 'Area', 'Nb of Covid-19 cases': 'Number of Cases'},
-    template='plotly_dark'
-)
-fig_bar.update_traces(texttemplate='%{y}', textposition='outside', hoverinfo='x+y')
-fig_bar.update_layout(transition_duration=500)
-
-# Pie Chart: Distribution of Cases by Area
-fig_pie = px.pie(
-    agg_data,
-    values='Nb of Covid-19 cases',
-    names='refArea',
-    title="COVID-19 Case Distribution by Area",
-    template='plotly_dark',
-    color_discrete_sequence=px.colors.qualitative.Set1
-)
-
-# Handle percentage display based on checkbox
-if show_percentage:
-    total_cases = agg_data['Nb of Covid-19 cases'].sum()
-    agg_data['Percentage'] = (agg_data['Nb of Covid-19 cases'] / total_cases) * 100
-    hover_text = agg_data.apply(
-        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
-    )
-    fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
-else:
-    hover_text = agg_data.apply(
-        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
-    )
-    fig_pie.update_traces(hovertext=hover_text, textinfo='none')
-
-# Optional: Explode sections of the pie chart for selected areas
-fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_data['refArea']])
-
-# Display the Bar Chart
-st.plotly_chart(fig_bar)
-
-# Display the Pie Chart
-st.plotly_chart(fig_pie)
-
-# Treemap: COVID-19 Cases by Town in each Area and Diabetes Status
-if 'Town' in df.columns and 'Diabetes' in df.columns:
-    
-    # Filter data for treemap and remove rows where 'Nb of Covid-19 cases' is 0 or missing
-    treemap_data = filtered_data[filtered_data['Nb of Covid-19 cases'] > 0].copy()
-    
-    # Check if there are still rows left after filtering
-    if not treemap_data.empty:
-        # Group and aggregate the data
-        treemap_data = treemap_data.groupby(['refArea', 'Town', 'Diabetes']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
-
-        # Create Treemap
-        fig_treemap = px.treemap(
-            treemap_data,
-            path=['refArea', 'Town', 'Diabetes'],
-            values='Nb of Covid-19 cases',
-            color='Diabetes',
-            color_discrete_map={'Yes': 'red', 'No': 'green'},
-            title="COVID-19 Cases by Town, Area, and Diabetes Status",
-            template='plotly_dark'
-        )
-        fig_treemap.update_traces(root_color='white')
-        st.plotly_chart(fig_treemap)
-    else:
-        st.warning("No COVID-19 cases available for the selected areas.")
-    
-# Additional Metric: Display total number of cases for selected areas
-total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
-st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
 
 
 
