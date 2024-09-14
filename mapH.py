@@ -1,20 +1,21 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import folium
+from folium import Choropleth, Marker
+from folium.plugins import MarkerCluster
 
 # Set title for the app
 st.title("Health Data in Lebanon")
 
-# Load the dataset
+# Load the main dataset
 data_load_state = st.text('Loading data...')
 url = "https://raw.githubusercontent.com/naa142/HealthLebanon/main/4a0321bc971cc2f793d3367fd0b55a34_20240905_102823.csv"
 df = pd.read_csv(url)
 data_load_state.text("Data loaded!")
 
-# Option to show the dataset
-if st.checkbox('Show data'):
-    st.write("Dataset Overview:")
-    st.dataframe(df)
+# Load coordinates dataset
+coordinates_url = "https://path_to_your_csv/lebanon_districts_coordinates.csv"
+coords_df = pd.read_csv(coordinates_url)
 
 # Rename columns for ease of use
 df.rename(columns={
@@ -23,12 +24,11 @@ df.rename(columns={
     'Existence of chronic diseases - Hypertension': 'Hypertension'
 }, inplace=True)
 
-# Ensure 'Diabetes' column is treated as strings
-df['Diabetes'] = df['Diabetes'].astype(str)
+# Merge coordinates with the main dataset
+df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
 
-# Convert the location names to coordinates (for visualization)
-df['Latitude'] = df['Latitude'].fillna(33.8938)  # Default latitude if missing
-df['Longitude'] = df['Longitude'].fillna(35.5018)  # Default longitude if missing
+# Filter out rows with missing coordinates
+df = df.dropna(subset=['Latitude', 'Longitude'])
 
 # Sidebar: Select Areas
 areas = df['refArea'].unique()
@@ -40,28 +40,30 @@ show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=Fals
 # Filter the dataset based on selected areas
 filtered_data = df[df['refArea'].isin(selected_areas)]
 
-# Create a map using Plotly
-fig_map = px.scatter_mapbox(
-    filtered_data,
-    lat='Latitude',
-    lon='Longitude',
-    color='Diabetes',
-    size='Nb of Covid-19 cases',
-    hover_name='refArea',
-    hover_data={'Latitude': False, 'Longitude': False},
-    color_discrete_map={'Yes': 'red', 'No': 'green'},
-    title="COVID-19 Cases in Lebanon by Area and Diabetes Status",
-    template='plotly_dark',
-    size_max=30
-)
+# Create a Folium map
+map_center = [33.8938, 35.5018]  # Center of Lebanon
+map_zoom = 8
+m = folium.Map(location=map_center, zoom_start=map_zoom)
 
-fig_map.update_layout(
-    mapbox_style="open-street-map",
-    margin={"r":0,"t":0,"l":0,"b":0}
-)
+# Marker cluster
+marker_cluster = MarkerCluster().add_to(m)
 
-# Display the map
-st.plotly_chart(fig_map)
+# Add markers to the map
+for _, row in filtered_data.iterrows():
+    color = 'green' if row['Diabetes'].strip().lower() == 'no' else 'red'
+    folium.CircleMarker(
+        location=[row['Latitude'], row['Longitude']],
+        radius=row['Nb of Covid-19 cases'] / 100,  # Adjust size as needed
+        color=color,
+        fill=True,
+        fill_color=color,
+        fill_opacity=0.6,
+        popup=f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases\nDiabetes: {row['Diabetes']}"
+    ).add_to(marker_cluster)
+
+# Display the map in Streamlit
+st.write("### COVID-19 Cases Map")
+st.components.v1.html(m._repr_html_(), height=600)
 
 # Aggregate data for bar and pie charts
 agg_data = filtered_data.groupby('refArea').agg({
@@ -70,6 +72,8 @@ agg_data = filtered_data.groupby('refArea').agg({
 }).reset_index()
 
 # Bar Chart: COVID-19 Cases by Area
+import plotly.express as px
+
 fig_bar = px.bar(
     agg_data,
     x='refArea',
@@ -143,6 +147,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
 # Additional Metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
