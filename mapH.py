@@ -1,21 +1,18 @@
-import streamlit as st
 import pandas as pd
 import folium
-from folium import Choropleth, Marker
-from folium.plugins import MarkerCluster
-
-# Set title for the app
-st.title("Health Data in Lebanon")
+from folium import MarkerCluster
+import streamlit as st
 
 # Load the main dataset
+st.title("Health Data in Lebanon")
 data_load_state = st.text('Loading data...')
 url = "https://raw.githubusercontent.com/naa142/HealthLebanon/main/4a0321bc971cc2f793d3367fd0b55a34_20240905_102823.csv"
 df = pd.read_csv(url)
 data_load_state.text("Data loaded!")
 
-# Load coordinates dataset
-coordinates_url = "https://path_to_your_csv/lebanon_districts_coordinates.csv"
-coords_df = pd.read_csv(coordinates_url)
+# Load local coordinates dataset
+coords_file = 'lebanon_districts_coordinates.csv'  # Update with your local file name
+coords_df = pd.read_csv(coords_file)
 
 # Rename columns for ease of use
 df.rename(columns={
