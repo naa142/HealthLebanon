@@ -41,7 +41,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Cardiov
     show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
 
     # Sidebar: Toggle map visibility
-    show_map = st.sidebar.checkbox("Show Map", value=True)
+    show_map = st.sidebar.checkbox("Show Map", value=False)
 
     # Filter the dataset based on selected areas
     filtered_df = df[df['refArea'].isin(selected_areas)]
