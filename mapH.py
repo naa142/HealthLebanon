@@ -40,6 +40,9 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Cardiov
     # Sidebar: Toggle percentage display on pie chart
     show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
 
+    # Sidebar: Toggle map visibility
+    show_map = st.sidebar.checkbox("Show Map", value=True)
+
     # Filter the dataset based on selected areas
     filtered_df = df[df['refArea'].isin(selected_areas)]
     
@@ -49,67 +52,68 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Cardiov
     # Calculate the total cases
     total_cases = agg_data['Nb of Covid-19 cases'].sum()
 
-    # Create a scatter mapbox plot
-    # Initialize geolocator
-    geolocator = Nominatim(user_agent="geoapiExercises")
+    if show_map:
+        # Create a scatter mapbox plot
+        # Initialize geolocator
+        geolocator = Nominatim(user_agent="geoapiExercises")
 
-    # Function to get coordinates
-    def get_coordinates(location):
-        try:
-            location = geolocator.geocode(location)
-            if location:
-                return location.latitude, location.longitude
-            else:
+        # Function to get coordinates
+        def get_coordinates(location):
+            try:
+                location = geolocator.geocode(location)
+                if location:
+                    return location.latitude, location.longitude
+                else:
+                    return None, None
+            except Exception as e:
+                st.error(f"Error geocoding {location}: {e}")
                 return None, None
-        except Exception as e:
-            st.error(f"Error geocoding {location}: {e}")
-            return None, None
 
-    # Get unique governorates
-    governorates = df['refArea'].unique()
-    coords = []
+        # Get unique governorates
+        governorates = df['refArea'].unique()
+        coords = []
 
-    # Geocode each governorate
-    for governorate in governorates:
-        lat, lon = get_coordinates(governorate)
-        coords.append({'Governorate': governorate, 'Latitude': lat, 'Longitude': lon})
+        # Geocode each governorate
+        for governorate in governorates:
+            lat, lon = get_coordinates(governorate)
+            coords.append({'Governorate': governorate, 'Latitude': lat, 'Longitude': lon})
 
-    # Create a DataFrame for coordinates
-    coords_df = pd.DataFrame(coords)
+        # Create a DataFrame for coordinates
+        coords_df = pd.DataFrame(coords)
 
-    # Merge with original data
-    df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
+        # Merge with original data
+        df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
 
-    # Check if coordinates were added
-    st.write(df[['refArea', 'Latitude', 'Longitude']].head())
+        # Check if coordinates were added
+        st.write(df[['refArea', 'Latitude', 'Longitude']].head())
 
-    # Create a scatter mapbox plot
-    fig = px.scatter_mapbox(
-        df,
-        lat='Latitude',
-        lon='Longitude',
-        color='Diabetes',  # Optional: Color points based on another variable
-        size='Nb of Covid-19 cases',  # Optional: Size points based on another variable
-        hover_name='refArea',  # Show additional data on hover
-        title="COVID-19 Cases by Governorate",
-        mapbox_style="carto-positron",  # Mapbox style; can be customized
-        zoom=6,  # Adjust zoom level
-        center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
-    )
+        # Create a scatter mapbox plot
+        fig = px.scatter_mapbox(
+            df,
+            lat='Latitude',
+            lon='Longitude',
+            color='Diabetes',  # Optional: Color points based on another variable
+            size='Nb of Covid-19 cases',  # Optional: Size points based on another variable
+            hover_name='refArea',  # Show additional data on hover
+            title="COVID-19 Cases by Governorate",
+            mapbox_style="carto-positron",  # Mapbox style; can be customized
+            zoom=6,  # Adjust zoom level
+            center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
+        )
 
-    # Update layout for better readability
-    fig.update_layout(
-        title_font_size=20,
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
-    )
+        # Update layout for better readability
+        fig.update_layout(
+            title_font_size=20,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
+        )
 
-    # Add Mapbox access token
-    fig.update_layout(mapbox_accesstoken='your_mapbox_access_token')
+        # Add Mapbox access token
+        fig.update_layout(mapbox_accesstoken='your_mapbox_access_token')
 
-    # Display the map in Streamlit
-    st.plotly_chart(fig)
+        # Display the map in Streamlit
+        st.plotly_chart(fig)
 
     # Bar Chart: COVID-19 Cases by Area
     fig_bar = px.bar(agg_data, x='refArea', y='Nb of Covid-19 cases',
@@ -192,6 +196,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
     # Additional Metric: Display total number of cases for selected areas
     total_cases_selected = agg_data['Nb of Covid-19 cases'].sum()
     st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
