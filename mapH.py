@@ -2,25 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
-import folium
-from io import BytesIO
-import base64
-import streamlit.components.v1 as components
-
-# Function to get coordinates from area name
-def get_coordinates(area_name):
-    try:
-        location = geolocator.geocode(area_name)
-        if location:
-            return location.latitude, location.longitude
-        else:
-            return None, None
-    except Exception as e:
-        st.error(f"Error fetching coordinates for {area_name}: {e}")
-        return None, None
-
-# Initialize geocoder
-geolocator = Nominatim(user_agent="geoapiExercises")
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -61,39 +42,74 @@ if 'refArea' in data.columns and 'Nb of Covid-19 cases' in data.columns and 'Exi
     # Calculate the total cases
     total_cases = agg_data['Nb of Covid-19 cases'].sum()
 
-    # Create a map
-    map_center = [33.8547, 35.8623]  # Central coordinates for Lebanon
-    map_zoom = 8
-    covid_map = folium.Map(location=map_center, zoom_start=map_zoom)
+    # Rename columns for ease of use
+    df.rename(columns={
+        'Existence of chronic diseases - Diabetes ': 'Diabetes',
+        'Existence of chronic diseases - Cardiovascular disease ': 'Cardiovascular Disease',
+        'Existence of chronic diseases - Hypertension': 'Hypertension'
+    }, inplace=True)
 
-    # Add circles to the map
-    for _, row in agg_data.iterrows():
-        lat, lon = get_coordinates(row['refArea'])
-        if lat and lon:
-            color = 'red' if row['Existence of chronic diseases - Cardiovascular disease '] == 'Yes' else 'green'
-            folium.CircleMarker(
-                location=[lat, lon],
-                radius=row['Nb of Covid-19 cases'] / 1000,  # Adjust size factor as needed
-                color=color,
-                fill=True,
-                fill_color=color,
-                fill_opacity=0.6,
-                popup=f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases"
-            ).add_to(covid_map)
+    # Initialize geolocator
+    geolocator = Nominatim(user_agent="geoapiExercises")
 
-    # Save map to HTML
-    map_html = 'map.html'
-    covid_map.save(map_html)
+    # Function to get coordinates
+    def get_coordinates(location):
+        try:
+            location = geolocator.geocode(location)
+            if location:
+                return location.latitude, location.longitude
+            else:
+                return None, None
+        except Exception as e:
+            st.error(f"Error geocoding {location}: {e}")
+            return None, None
 
-    # Read HTML file and encode as base64
-    with open(map_html, 'r', encoding='utf-8') as f:
-        map_html_content = f.read()
-    
-    map_base64 = base64.b64encode(map_html_content.encode()).decode()
+    # Get unique governorates
+    governorates = df['refArea'].unique()
+    coords = []
 
-    # Embed the map in Streamlit
-    components.html(f'<iframe src="data:text/html;base64,{map_base64}" width="100%" height="600"></iframe>', height=600)
-    
+    # Geocode each governorate
+    for governorate in governorates:
+        lat, lon = get_coordinates(governorate)
+        coords.append({'Governorate': governorate, 'Latitude': lat, 'Longitude': lon})
+
+    # Create a DataFrame for coordinates
+    coords_df = pd.DataFrame(coords)
+
+    # Merge with original data
+    df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
+
+    # Check if coordinates were added
+    st.write(df.head())
+
+    # Create a scatter mapbox plot
+    fig = px.scatter_mapbox(
+        df,
+        lat='Latitude',
+        lon='Longitude',
+        color='Diabetes',  # Optional: Color points based on another variable
+        size='Nb of Covid-19 cases',  # Optional: Size points based on another variable
+        hover_name='refArea',  # Show additional data on hover
+        title="COVID-19 Cases by Governorate",
+        mapbox_style="carto-positron",  # Mapbox style; can be customized
+        zoom=6,  # Adjust zoom level
+        center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
+    )
+
+    # Update layout for better readability
+    fig.update_layout(
+        title_font_size=20,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
+    )
+
+    # Add Mapbox access token
+    fig.update_layout(mapbox_accesstoken='your_mapbox_access_token')
+
+    # Display the map in Streamlit
+    st.plotly_chart(fig)
+
     # Bar Chart: COVID-19 Cases by Area
     fig_bar = px.bar(agg_data, x='refArea', y='Nb of Covid-19 cases',
                      title="COVID-19 Cases by Area",
@@ -139,42 +155,8 @@ if 'refArea' in data.columns and 'Nb of Covid-19 cases' in data.columns and 'Exi
     st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
 
 else:
-    st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+    st.error("Columns '
 
-# Treemap: COVID-19 Cases by Town in each Area and Diabetes Status
-if 'Town' in data.columns and 'Existence of chronic diseases - Diabetes ' in data.columns:  # Note the space after 'Diabetes'
-    
-    # Filter data for treemap and remove rows where 'Nb of Covid-19 cases' is 0 or missing
-    treemap_data = filtered_data[filtered_data['Nb of Covid-19 cases'] > 0].copy()
-
-    # Check if there are still rows left after filtering
-    if not treemap_data.empty:
-        # Group and aggregate the data
-        treemap_data = treemap_data.groupby(['refArea', 'Town', 'Existence of chronic diseases - Diabetes ']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
-
-        # Create Treemap
-        fig_treemap = px.treemap(
-            treemap_data,
-            path=['refArea', 'Town', 'Existence of chronic diseases - Diabetes '],
-            values='Nb of Covid-19 cases',
-            color='Existence of chronic diseases - Diabetes ',
-            color_discrete_map={'Yes': 'red', 'No': 'green'},
-            title="COVID-19 Cases by Town, Area, and Diabetes Status",
-            template='plotly_dark'
-        )
-
-        # Set all districts to have a white background
-        fig_treemap.update_traces(root_color='white')
-
-        # Display the Treemap
-        st.plotly_chart(fig_treemap)
-    
-    else:
-        st.warning("No COVID-19 cases available for the selected areas.")
-
-    # Additional Metric: Display total number of cases for selected areas
-    total_cases_selected = agg_data['Nb of Covid-19 cases'].sum()
-    st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
 
 
 
