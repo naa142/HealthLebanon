@@ -52,10 +52,10 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     # Initialize geolocator
     geolocator = Nominatim(user_agent="geoapiExercises")
 
-    # Function to get coordinates
+    # Function to get coordinates with increased timeout
     def get_coordinates(location):
         try:
-            location = geolocator.geocode(location)
+            location = geolocator.geocode(location, timeout=10)  # Increase timeout to 10 seconds
             if location:
                 return location.latitude, location.longitude
             else:
@@ -191,6 +191,7 @@ if 'Town' in df.columns and 'Existence of chronic diseases - Diabetes ' in df.co
     # Additional Metric: Display total number of cases for selected areas
     total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
     st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
