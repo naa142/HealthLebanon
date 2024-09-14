@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut
+import time
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -21,22 +21,23 @@ if st.checkbox('Show data'):
 # Rename columns for ease of use
 df.rename(columns={
     'Existence of chronic diseases - Diabetes ': 'Diabetes',
-    'Existence of chronic diseases - Cardiovascular disease ': 'Cardiovascular Disease',
+    'Existence of chronic diseases - Cardiovascular Disease ': 'Cardiovascular Disease',
     'Existence of chronic diseases - Hypertension': 'Hypertension'
 }, inplace=True)
 
 # Initialize geolocator
 geolocator = Nominatim(user_agent="geoapiExercises")
 
-# Function to get coordinates with increased timeout
+# Function to get coordinates
 def get_coordinates(location):
     try:
-        loc = geolocator.geocode(location, timeout=15)  # Increase timeout
+        loc = geolocator.geocode(location, timeout=10)  # Increase timeout if needed
         if loc:
             return loc.latitude, loc.longitude
         else:
             return None, None
-    except GeocoderTimedOut:
+    except Exception as e:
+        st.error(f"Error geocoding {location}: {e}")
         return None, None
 
 # Get unique districts
@@ -69,6 +70,9 @@ show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=Fals
 # Filter the dataset based on selected areas
 filtered_data = df[df['refArea'].isin(selected_areas)]
 
+# Add Mapbox access token
+mapbox_access_token = "c06c01b0cf09497b9cd9eb1ce74372c0"  # Replace this with your Mapbox token
+
 # Create a scatter mapbox plot
 fig_map = px.scatter_mapbox(
     filtered_data,
@@ -89,8 +93,8 @@ fig_map = px.scatter_mapbox(
     center={"lat": 33.8938, "lon": 35.5018}  # Center on Lebanon
 )
 
-# Add Mapbox access token (replace with your token)
-fig_map.update_layout(mapbox_accesstoken='your_mapbox_access_token')
+# Update the layout with your Mapbox access token
+fig_map.update_layout(mapbox_accesstoken=mapbox_access_token)
 
 # Display the map in Streamlit
 st.plotly_chart(fig_map)
@@ -175,6 +179,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
 # Additional Metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
