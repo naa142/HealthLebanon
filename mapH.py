@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
-import numpy as np
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -31,7 +30,7 @@ geolocator = Nominatim(user_agent="geoapiExercises")
 # Function to get coordinates
 def get_coordinates(location):
     try:
-        loc = geolocator.geocode(location)
+        loc = geolocator.geocode(location, timeout=10)  # Increase timeout if needed
         if loc:
             return loc.latitude, loc.longitude
         else:
@@ -57,9 +56,8 @@ coords_df = pd.DataFrame(coords)
 # Merge with original data
 df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
 
-# Optional: Apply a small jitter to avoid overlapping circles
-df['Latitude'] = df['Latitude'] + np.random.uniform(-0.01, 0.01, size=len(df))
-df['Longitude'] = df['Longitude'] + np.random.uniform(-0.01, 0.01, size=len(df))
+# Filter out rows with missing coordinates
+df = df.dropna(subset=['Latitude', 'Longitude'])
 
 # Sidebar: Select Areas
 areas = df['refArea'].unique()
@@ -70,9 +68,6 @@ show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=Fals
 
 # Filter the dataset based on selected areas
 filtered_data = df[df['refArea'].isin(selected_areas)]
-
-# Ensure all coordinates are valid
-filtered_data = filtered_data[filtered_data['Latitude'].notna() & filtered_data['Longitude'].notna()]
 
 # Create a scatter mapbox plot
 fig_map = px.scatter_mapbox(
@@ -90,7 +85,7 @@ fig_map = px.scatter_mapbox(
     },
     title="COVID-19 Cases by District and Diabetes Status",
     mapbox_style="carto-positron",  # Mapbox style
-    zoom=7,  # Adjust zoom level for Lebanon
+    zoom=8,  # Adjust zoom level for Lebanon
     center={"lat": 33.8938, "lon": 35.5018}  # Center on Lebanon
 )
 
@@ -180,6 +175,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
 # Additional Metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
