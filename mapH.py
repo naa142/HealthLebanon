@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
-import time
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -60,125 +59,53 @@ df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
 # Filter out rows with missing coordinates
 df = df.dropna(subset=['Latitude', 'Longitude'])
 
-# Sidebar: Select Areas
-areas = df['refArea'].unique()
-selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
+# Debugging: Check if any latitude or longitude is still missing
+st.write("Checking for missing Latitude/Longitude after merge:")
+st.write(df[df[['Latitude', 'Longitude']].isnull().any(axis=1)])
 
-# Sidebar: Toggle percentage display on pie chart
-show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
+# Ensure latitude and longitude are available
+if df[['Latitude', 'Longitude']].isnull().any(axis=1).sum() == 0:
+    # Sidebar: Select Areas
+    areas = df['refArea'].unique()
+    selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
 
-# Filter the dataset based on selected areas
-filtered_data = df[df['refArea'].isin(selected_areas)]
+    # Sidebar: Toggle percentage display on pie chart
+    show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
 
-# Add Mapbox access token
-mapbox_access_token = "c06c01b0cf09497b9cd9eb1ce74372c0"  # Replace this with your Mapbox token
+    # Filter the dataset based on selected areas
+    filtered_data = df[df['refArea'].isin(selected_areas)]
 
-# Create a scatter mapbox plot
-fig_map = px.scatter_mapbox(
-    filtered_data,
-    lat='Latitude',
-    lon='Longitude',
-    color='Diabetes',  # Color points based on diabetes status (Yes/No)
-    size='Nb of Covid-19 cases',  # Size points based on the number of COVID-19 cases
-    hover_name='refArea',  # Show additional data on hover
-    hover_data={
-        'Nb of Covid-19 cases': True,
-        'Diabetes': True,
-        'Cardiovascular Disease': True,
-        'Hypertension': True
-    },
-    title="COVID-19 Cases by District and Diabetes Status",
-    mapbox_style="carto-positron",  # Mapbox style
-    zoom=8,  # Adjust zoom level for Lebanon
-    center={"lat": 33.8938, "lon": 35.5018}  # Center on Lebanon
-)
+    # Add Mapbox access token
+    mapbox_access_token = "c06c01b0cf09497b9cd9eb1ce74372c0"  # Replace this with your Mapbox token
 
-# Update the layout with your Mapbox access token
-fig_map.update_layout(mapbox_accesstoken=mapbox_access_token)
-
-# Display the map in Streamlit
-st.plotly_chart(fig_map)
-
-# Aggregate data for bar and pie charts
-agg_data = filtered_data.groupby('refArea').agg({
-    'Nb of Covid-19 cases': 'sum',
-    'Diabetes': 'first'
-}).reset_index()
-
-# Bar Chart: COVID-19 Cases by Area
-fig_bar = px.bar(
-    agg_data,
-    x='refArea',
-    y='Nb of Covid-19 cases',
-    title="COVID-19 Cases by Area",
-    labels={'refArea': 'Area', 'Nb of Covid-19 cases': 'Number of Cases'},
-    template='plotly_dark'
-)
-fig_bar.update_traces(texttemplate='%{y}', textposition='outside', hoverinfo='x+y')
-fig_bar.update_layout(transition_duration=500)
-
-# Pie Chart: Distribution of Cases by Area
-fig_pie = px.pie(
-    agg_data,
-    values='Nb of Covid-19 cases',
-    names='refArea',
-    title="COVID-19 Case Distribution by Area",
-    template='plotly_dark',
-    color_discrete_sequence=px.colors.qualitative.Set1
-)
-
-# Handle percentage display based on checkbox
-if show_percentage:
-    total_cases = agg_data['Nb of Covid-19 cases'].sum()
-    agg_data['Percentage'] = (agg_data['Nb of Covid-19 cases'] / total_cases) * 100
-    hover_text = agg_data.apply(
-        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
+    # Create a scatter mapbox plot
+    fig_map = px.scatter_mapbox(
+        filtered_data,
+        lat='Latitude',
+        lon='Longitude',
+        color='Diabetes',  # Color points based on diabetes status (Yes/No)
+        size='Nb of Covid-19 cases',  # Size points based on the number of COVID-19 cases
+        hover_name='refArea',  # Show additional data on hover
+        hover_data={
+            'Nb of Covid-19 cases': True,
+            'Diabetes': True,
+            'Cardiovascular Disease': True,
+            'Hypertension': True
+        },
+        title="COVID-19 Cases by District and Diabetes Status",
+        mapbox_style="carto-positron",  # Mapbox style
+        zoom=8,  # Adjust zoom level for Lebanon
+        center={"lat": 33.8938, "lon": 35.5018}  # Center on Lebanon
     )
-    fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
+
+    # Update the layout with your Mapbox access token
+    fig_map.update_layout(mapbox_accesstoken=mapbox_access_token)
+
+    # Display the map in Streamlit
+    st.plotly_chart(fig_map)
 else:
-    hover_text = agg_data.apply(
-        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
-    )
-    fig_pie.update_traces(hovertext=hover_text, textinfo='none')
+    st.error("Latitude or Longitude data is missing, unable to generate the map.")
 
-# Optional: Explode sections of the pie chart for selected areas
-fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_data['refArea']])
-
-# Display the Bar Chart
-st.plotly_chart(fig_bar)
-
-# Display the Pie Chart
-st.plotly_chart(fig_pie)
-
-# Treemap: COVID-19 Cases by Town in each Area and Diabetes Status
-if 'Town' in df.columns and 'Diabetes' in df.columns:
-    
-    # Filter data for treemap and remove rows where 'Nb of Covid-19 cases' is 0 or missing
-    treemap_data = filtered_data[filtered_data['Nb of Covid-19 cases'] > 0].copy()
-    
-    # Check if there are still rows left after filtering
-    if not treemap_data.empty:
-        # Group and aggregate the data
-        treemap_data = treemap_data.groupby(['refArea', 'Town', 'Diabetes']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
-
-        # Create Treemap
-        fig_treemap = px.treemap(
-            treemap_data,
-            path=['refArea', 'Town', 'Diabetes'],
-            values='Nb of Covid-19 cases',
-            color='Diabetes',
-            color_discrete_map={'Yes': 'red', 'No': 'green'},
-            title="COVID-19 Cases by Town, Area, and Diabetes Status",
-            template='plotly_dark'
-        )
-        fig_treemap.update_traces(root_color='white')
-        st.plotly_chart(fig_treemap)
-    else:
-        st.warning("No COVID-19 cases available for the selected areas.")
-    
-# Additional Metric: Display total number of cases for selected areas
-total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
-st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
 
 
 
