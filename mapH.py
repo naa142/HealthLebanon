@@ -99,7 +99,11 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
         lat='Latitude',
         lon='Longitude',
         size='Nb of Covid-19 cases',  # Size points based on number of cases
-        color='Nb of Covid-19 cases',  # Optional: Color points based on number of cases
+        color='Existence of chronic diseases - Cardiovascular disease ',  # Color points based on cardiovascular disease status
+        color_discrete_map={
+            'Yes': 'red',
+            'No': 'blue'
+        },
         hover_name='refArea',  # Show additional data on hover
         title="COVID-19 Cases by Area",
         mapbox_style="carto-positron",  # Mapbox style; can be customized
@@ -160,14 +164,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     st.plotly_chart(fig_bar)
 
     # Display the Pie Chart
-    st.plotly_chart(fig_pie)
-
-    # Additional Metric: Display total number of cases for selected areas
-    total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
-    st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
-
-else:
-    st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+    st.plotly_chart
 
 
 
