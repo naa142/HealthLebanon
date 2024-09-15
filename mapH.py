@@ -42,6 +42,9 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     # Filter the dataset based on selected areas
     filtered_df = df[df['refArea'].isin(selected_areas)]
     
+    # Handle missing or zero values
+    filtered_df = filtered_df[filtered_df['Nb of Covid-19 cases'] > 0].dropna(subset=['Nb of Covid-19 cases'])
+    
     # Aggregate the data by summing up COVID-19 cases per area
     agg_df = filtered_df.groupby(['refArea']).agg({
         'Nb of Covid-19 cases': 'sum', 
@@ -161,8 +164,8 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     show_pie_chart = st.checkbox("Show Pie Chart", value=True)
 
     if show_pie_chart:
-        # Pie Chart: Distribution of Cases by Area (without names on the chart)
-        fig_pie = px.pie(agg_df, values='Nb of Covid-19 cases', names='refArea',
+        # Pie Chart: Distribution of COVID-19 Cases by Area
+        fig_pie = px.pie(agg_df, names='refArea', values='Nb of Covid-19 cases',
                          title="Distribution of COVID-19 Cases by Area",
                          template='plotly_dark')
 
@@ -187,8 +190,10 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     if show_tree_map:
         # Tree Map: Distribution of COVID-19 Cases with Towns
         try:
-            # Directly use the original dataframe without aggregation for the tree map
-            fig_tree = px.treemap(df, path=['refArea', 'Town'], values='Nb of Covid-19 cases',
+            # Check for any potential zero values in 'Nb of Covid-19 cases' before plotting
+            df_filtered = df[df['Nb of Covid-19 cases'] > 0]
+            
+            fig_tree = px.treemap(df_filtered, path=['refArea', 'Town'], values='Nb of Covid-19 cases',
                                   color='Existence of chronic diseases - Cardiovascular disease ',
                                   color_discrete_map={
                                       'Yes': 'red',
