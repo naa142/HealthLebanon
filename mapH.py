@@ -141,43 +141,6 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
 
-# Treemap: COVID-19 Cases by Town in each Area and Diabetes Status
-if 'Town' in data.columns and 'Existence of chronic diseases - Diabetes ' in data.columns:  # Note the space after 'Diabetes'
-    
-    # Filter data for treemap and remove rows where 'Nb of Covid-19 cases' is 0 or missing
-    treemap_data = filtered_data[filtered_data['Nb of Covid-19 cases'] > 0].copy()
-
-    # Check if there are still rows left after filtering
-    if not treemap_data.empty:
-        # Group and aggregate the data
-        treemap_data = treemap_data.groupby(['refArea', 'Town', 'Existence of chronic diseases - Diabetes ']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
-
-        # Create Treemap
-        fig_treemap = px.treemap(
-            treemap_data,
-            path=['refArea', 'Town', 'Existence of chronic diseases - Diabetes '],
-            values='Nb of Covid-19 cases',
-            color='Existence of chronic diseases - Diabetes ',
-            color_discrete_map={'Yes': 'red', 'No': 'green'},
-            title="COVID-19 Cases by Town, Area, and Diabetes Status",
-            template='plotly_dark'
-        )
-
-        # Set all districts to have a white background
-        fig_treemap.update_traces(root_color='white')
-
-        # Display the Treemap
-        st.plotly_chart(fig_treemap)
-    
-    else:
-        st.warning("No COVID-19 cases available for the selected areas.")
-
-    # Additional Metric: Display total number of cases for selected areas
-    total_cases_selected = agg_data['Nb of Covid-19 cases'].sum()
-    st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
-
-
-
 
 
 
