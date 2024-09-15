@@ -8,7 +8,7 @@ st.title("Health Data in Lebanon")
 
 # Load and display the dataset
 data_load_state = st.text('Loading data...')
-url = r"C:\Users\Nour Abd El Ghani\Downloads\4a0321bc971cc2f793d3367fd0b55a34_20240905_102823.csv"
+url = "https://raw.githubusercontent.com/naa142/HealthLebanon/main/4a0321bc971cc2f793d3367fd0b55a34_20240905_102823.csv"
 df = pd.read_csv(url)
 
 # Option to show the dataset
