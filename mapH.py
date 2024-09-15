@@ -23,7 +23,7 @@ st.write(df.columns)
 st.subheader("COVID-19 Cases by Area")
 
 # Check if required columns exist in the dataset
-if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existence of chronic diseases - Cardiovascular disease ' in df.columns:
+if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existence of chronic diseases - Cardiovascular disease ' in df.columns and 'Town' in df.columns:
     
     # Sidebar: Select Areas
     areas = df['refArea'].unique()
@@ -35,8 +35,8 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     # Filter the dataset based on selected areas
     filtered_df = df[df['refArea'].isin(selected_areas)]
     
-    # Aggregate the data by summing up COVID-19 cases per area
-    agg_df = filtered_df.groupby('refArea').agg({
+    # Aggregate the data by summing up COVID-19 cases per area and town
+    agg_df = filtered_df.groupby(['refArea', 'Town']).agg({
         'Nb of Covid-19 cases': 'sum', 
         'Existence of chronic diseases - Cardiovascular disease ': 'first'
     }).reset_index()
@@ -167,13 +167,13 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     st.plotly_chart(fig_pie)
 
     # Tree Map: Distribution of COVID-19 Cases
-    fig_tree = px.treemap(agg_df, path=['refArea'], values='Nb of Covid-19 cases',
+    fig_tree = px.treemap(agg_df, path=['refArea', 'Town'], values='Nb of Covid-19 cases',
                           color='Existence of chronic diseases - Cardiovascular disease ',
                           color_discrete_map={
                               'Yes': 'red',
                               'No': 'blue'
                           },
-                          title="COVID-19 Cases Distribution by Area",
+                          title="COVID-19 Cases Distribution by Area and Town",
                           template='plotly_dark')
 
     # Update layout for better readability
@@ -191,7 +191,8 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
 
 else:
-    st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+    st.error("Columns 'refArea', 'Nb of Covid-19 cases', 'Existence of chronic diseases - Cardiovascular disease ', or 'Town' not found in the dataset.")
+
 
 
 
