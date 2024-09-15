@@ -42,11 +42,15 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     # Filter the dataset based on selected areas
     filtered_df = df[df['refArea'].isin(selected_areas)]
     
-    # Aggregate the data by summing up COVID-19 cases per area
-    agg_df = filtered_df.groupby('refArea').agg({
+    # Aggregate the data by summing up COVID-19 cases per area and including 'Town'
+    agg_df = filtered_df.groupby(['refArea', 'Town']).agg({
         'Nb of Covid-19 cases': 'sum', 
         'Existence of chronic diseases - Cardiovascular disease ': 'first'
     }).reset_index()
+
+    # Print the structure of the aggregated DataFrame to verify
+    st.write("Aggregated DataFrame:")
+    st.write(agg_df.head())
 
     # Manually add latitude and longitude information
     coords_data = {
@@ -159,11 +163,9 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     if show_pie_chart:
         # Pie Chart: Distribution of Cases by Area (without names on the chart)
         fig_pie = px.pie(agg_df, values='Nb of Covid-19 cases', names='refArea',
-                         title="COVID-19 Case Distribution by Area",
-                         template='plotly_dark',
-                         color_discrete_sequence=px.colors.qualitative.Set1)
+                         title="Distribution of COVID-19 Cases by Area",
+                         template='plotly_dark')
 
-        # Handle percentage display based on checkbox
         total_cases = agg_df['Nb of Covid-19 cases'].sum()
         if show_percentage:
             hover_text = agg_df.apply(
@@ -209,6 +211,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
