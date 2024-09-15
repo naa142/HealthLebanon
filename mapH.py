@@ -190,7 +190,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
     if show_tree_map:
         # Tree Map: Distribution of COVID-19 Cases
-        fig_tree = px.treemap(agg_df, path=['refArea'], values='Nb of Covid-19 cases',
+        fig_tree = px.treemap(df, path=['refArea','Town], values='Nb of Covid-19 cases',
                               color='Existence of chronic diseases - Cardiovascular disease ',
                               color_discrete_map={
                                   'Yes': 'red',
