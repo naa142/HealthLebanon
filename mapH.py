@@ -166,12 +166,33 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     # Display the Pie Chart
     st.plotly_chart(fig_pie)
 
+    # Tree Map: Distribution of COVID-19 Cases
+    fig_tree = px.treemap(agg_df, path=['refArea'], values='Nb of Covid-19 cases',
+                          color='Existence of chronic diseases - Cardiovascular disease ',
+                          color_discrete_map={
+                              'Yes': 'red',
+                              'No': 'blue'
+                          },
+                          title="COVID-19 Cases Distribution by Area",
+                          template='plotly_dark')
+
+    # Update layout for better readability
+    fig_tree.update_layout(
+        title_font_size=20,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+
+    # Display the Tree Map
+    st.plotly_chart(fig_tree)
+
     # Additional Metric: Display total number of cases for selected areas
     total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
     st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
