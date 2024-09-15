@@ -152,14 +152,12 @@ if 'Town' in df.columns and 'Existence of chronic diseases - Diabetes ' in df.co
         # Group and aggregate the data
         treemap_df = treemap_df.groupby(['refArea', 'Town', 'Existence of chronic diseases - Diabetes ']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
 
-        # Create Treemap
+        # Simplified Treemap
         fig_treemap = px.treemap(
             treemap_df,
-            path=['refArea', 'Town', 'Existence of chronic diseases - Diabetes '],
+            path=['refArea', 'Town'],
             values='Nb of Covid-19 cases',
-            color='Existence of chronic diseases - Diabetes ',
-            color_discrete_map={'Yes': 'red', 'No': 'green'},
-            title="COVID-19 Cases by Town, Area, and Diabetes Status",
+            title="COVID-19 Cases by Town and Area",
             template='plotly_dark'
         )
 
@@ -175,6 +173,7 @@ if 'Town' in df.columns and 'Existence of chronic diseases - Diabetes ' in df.co
     # Additional Metric: Display total number of cases for selected areas
     total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
     st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
