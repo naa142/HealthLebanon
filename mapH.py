@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from geopy.geocoders import Nominatim
+from time import sleep
 
 # Set title for the app
 st.title("Health Data in Lebanon")
@@ -19,49 +21,91 @@ if st.checkbox('Show data'):
 # Rename columns for ease of use
 df.rename(columns={
     'Existence of chronic diseases - Diabetes ': 'Diabetes',
-    'Existence of chronic diseases - Cardiovascular disease ': 'Cardiovascular Disease',
+    'Existence of chronic diseases - Cardiovascular Disease ': 'Cardiovascular Disease',
     'Existence of chronic diseases - Hypertension': 'Hypertension'
 }, inplace=True)
 
-# Ensure 'Diabetes' column is treated as strings
-df['Diabetes'] = df['Diabetes'].astype(str)
+# Initialize geolocator
+geolocator = Nominatim(user_agent="geoapiExercises")
 
-# Convert the location names to coordinates (for visualization)
-df['Latitude'] = df['Latitude'].fillna(33.8938)  # Default latitude if missing
-df['Longitude'] = df['Longitude'].fillna(35.5018)  # Default longitude if missing
+# Function to get coordinates with a delay
+def get_coordinates(location):
+    try:
+        loc = geolocator.geocode(location, timeout=10)  # Increase timeout if needed
+        if loc:
+            return loc.latitude, loc.longitude
+        else:
+            return None, None
+    except Exception as e:
+        st.error(f"Error geocoding {location}: {e}")
+        sleep(1)  # Add delay to avoid hitting rate limits
+        return None, None
 
-# Sidebar: Select Areas
-areas = df['refArea'].unique()
-selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
+# Get unique districts
+districts = df['refArea'].unique()
+coords = []
 
-# Sidebar: Toggle percentage display on pie chart
-show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
+# Geocode each district
+for district in districts:
+    lat, lon = get_coordinates(district)
+    if lat is None or lon is None:
+        lat, lon = 33.8938, 35.5018  # Default to Lebanon center if geocoding fails
+    coords.append({'District': district, 'Latitude': lat, 'Longitude': lon})
 
-# Filter the dataset based on selected areas
-filtered_data = df[df['refArea'].isin(selected_areas)]
+# Create a DataFrame for coordinates
+coords_df = pd.DataFrame(coords)
 
-# Create a map using Plotly
-fig_map = px.scatter_mapbox(
-    filtered_data,
-    lat='Latitude',
-    lon='Longitude',
-    color='Diabetes',
-    size='Nb of Covid-19 cases',
-    hover_name='refArea',
-    hover_data={'Latitude': False, 'Longitude': False},
-    color_discrete_map={'Yes': 'red', 'No': 'green'},
-    title="COVID-19 Cases in Lebanon by Area and Diabetes Status",
-    template='plotly_dark',
-    size_max=30
-)
+# Merge with original data
+df = df.merge(coords_df, left_on='refArea', right_on='District', how='left')
 
-fig_map.update_layout(
-    mapbox_style="open-street-map",
-    margin={"r":0,"t":0,"l":0,"b":0}
-)
+# Filter out rows with missing coordinates
+df = df.dropna(subset=['Latitude', 'Longitude'])
 
-# Display the map
-st.plotly_chart(fig_map)
+# Check if latitude and longitude are properly set
+if df[['Latitude', 'Longitude']].isnull().any().sum() == 0:
+    # Sidebar: Select Areas
+    areas = df['refArea'].unique()
+    selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
+
+    # Sidebar: Toggle percentage display on pie chart
+    show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
+
+    # Filter the dataset based on selected areas
+    filtered_data = df[df['refArea'].isin(selected_areas)]
+
+    # Add Mapbox access token
+    mapbox_access_token = "c06c01b0cf09497b9cd9eb1ce74372c0"  # Replace this with your Mapbox token
+
+    # Create a scatter mapbox plot
+    try:
+        fig_map = px.scatter_mapbox(
+            filtered_data,
+            lat='Latitude',
+            lon='Longitude',
+            color='Diabetes',  # Color points based on diabetes status (Yes/No)
+            size='Nb of Covid-19 cases',  # Size points based on the number of COVID-19 cases
+            hover_name='refArea',  # Show additional data on hover
+            hover_data={
+                'Nb of Covid-19 cases': True,
+                'Diabetes': True,
+                'Cardiovascular Disease': True,
+                'Hypertension': True
+            },
+            title="COVID-19 Cases by District and Diabetes Status",
+            mapbox_style="carto-positron",  # Mapbox style
+            zoom=8,  # Adjust zoom level for Lebanon
+            center={"lat": 33.8938, "lon": 35.5018}  # Center on Lebanon
+        )
+
+        # Update the layout with your Mapbox access token
+        fig_map.update_layout(mapbox_accesstoken=mapbox_access_token)
+
+        # Display the map in Streamlit
+        st.plotly_chart(fig_map)
+    except ValueError as e:
+        st.error(f"ValueError: {e}")
+else:
+    st.error("Latitude or Longitude data is missing, unable to generate the map.")
 
 # Aggregate data for bar and pie charts
 agg_data = filtered_data.groupby('refArea').agg({
@@ -143,6 +187,7 @@ if 'Town' in df.columns and 'Diabetes' in df.columns:
 # Additional Metric: Display total number of cases for selected areas
 total_cases_selected = filtered_data['Nb of Covid-19 cases'].sum()
 st.write(f"Total COVID-19 cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
