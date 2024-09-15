@@ -29,6 +29,9 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     areas = df['refArea'].unique()
     selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
 
+    # Sidebar: Map Display Options
+    show_map = st.sidebar.checkbox("Show Map", value=True)
+    
     # Sidebar: Toggle percentage display on pie chart
     show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
 
@@ -47,7 +50,8 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
             'Mount_Lebanon_Governorate', 'South_Governorate', 'Akkar_Governorate', 
             'North_Governorate', 'Baabda_District', 'Byblos_District', 'Nabatieh_Governorate', 
             'Tyre_District', 'Bsharri_District', 'Sidon_District', 'Batroun_District', 
-            'Zgharta_District', 'Keserwan_District', 'Marjeyoun_District', 'Aley_District', 
+            'Zgharta_District', 'Keserwan_District', 'Marjeyoun_District', 'Nabatieh_Governorate', 
+            'Marjeyoun_District', 'Sidon_District', 'North_Governorate', 'Aley_District', 
             'Beqaa_Governorate', 'Matn_District', 'Miniyeh-Danniyeh_District', 'Bint_Jbeil_District', 
             'Hasbaya_District', 'Zahle_District', 'Western_Beqaa_District'
         ],
@@ -64,66 +68,45 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
             35.748880
         ]
     }
-
-    # Convert coords_data to a DataFrame and remove duplicates
-    coords_df = pd.DataFrame(coords_data).drop_duplicates()
-
-    # Print the lengths of the lists to verify
-    st.write(f"Length of Governorate list: {len(coords_df['Governorate'])}")
-    st.write(f"Length of Latitude list: {len(coords_df['Latitude'])}")
-    st.write(f"Length of Longitude list: {len(coords_df['Longitude'])}")
-
-    # Check the contents of coords_df
-    st.write("Coordinates DataFrame:")
-    st.write(coords_df)
+    coords_df = pd.DataFrame(coords_data)
+    
+    # Remove duplicate rows based on 'Governorate'
+    coords_df = coords_df.drop_duplicates(subset=['Governorate'])
 
     # Merge with original data
     df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
 
-    # Check for missing values
-    missing_latitude = df['Latitude'].isna().sum()
-    missing_longitude = df['Longitude'].isna().sum()
-    st.write(f"Missing Latitude values: {missing_latitude}")
-    st.write(f"Missing Longitude values: {missing_longitude}")
-
-    # Drop rows with missing coordinates (if any)
-    df = df.dropna(subset=['Latitude', 'Longitude'])
-
-    # Verify the merged DataFrame
-    st.write("Merged DataFrame head:")
+    # Check if coordinates were added
     st.write(df.head())
 
     # Create a scatter mapbox plot
-    fig = px.scatter_mapbox(
-        df,
-        lat='Latitude',
-        lon='Longitude',
-        size='Nb of Covid-19 cases',  # Size points based on number of cases
-        color='Existence of chronic diseases - Cardiovascular disease ',  # Color points based on cardiovascular disease status
-        color_discrete_map={
-            'Yes': 'red',
-            'No': 'blue'
-        },
-        hover_name='refArea',  # Show additional data on hover
-        title="COVID-19 Cases by Area",
-        mapbox_style="carto-positron",  # Mapbox style; can be customized
-        zoom=6,  # Adjust zoom level
-        center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
-    )
+    if show_map:
+        fig = px.scatter_mapbox(
+            agg_df,
+            lat='Latitude',
+            lon='Longitude',
+            size='Nb of Covid-19 cases',  # Size points based on number of cases
+            color='Existence of chronic diseases - Cardiovascular disease ',  # Color points based on cardiovascular disease
+            hover_name='refArea',  # Show additional data on hover
+            title="COVID-19 Cases by Governorate",
+            mapbox_style="carto-positron",  # Mapbox style; can be customized
+            zoom=6,  # Adjust zoom level
+            center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
+        )
 
-    # Update layout for better readability
-    fig.update_layout(
-        title_font_size=20,
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
-    )
+        # Update layout for better readability
+        fig.update_layout(
+            title_font_size=20,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
+        )
 
-    # Add Mapbox access token
-    fig.update_layout(mapbox_accesstoken='pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMG93ZGxqYTBjbTMycXIzanZmNGh5ZjYifQ.Brd1QyD5TYB9DuvtCTwxCw')
+        # Add Mapbox access token
+        fig.update_layout(mapbox_accesstoken='pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMG93ZGxqYTBjbTMycXIzanZmNGh5ZjYifQ.Brd1QyD5TYB9DuvtCTwxCw')
 
-    # Display the map in Streamlit
-    st.plotly_chart(fig)
+        # Display the map in Streamlit
+        st.plotly_chart(fig)
 
     # Bar Chart: COVID-19 Cases by Area
     fig_bar = px.bar(agg_df, x='refArea', y='Nb of Covid-19 cases',
@@ -142,7 +125,6 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
                      color_discrete_sequence=px.colors.qualitative.Set1)
 
     # Handle percentage display based on checkbox
-    total_cases = agg_df['Nb of Covid-19 cases'].sum()  # Calculate total cases for percentage
     if show_percentage:
         # Show percentage on hover
         agg_df['Percentage'] = (agg_df['Nb of Covid-19 cases'] / total_cases) * 100
@@ -172,6 +154,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
