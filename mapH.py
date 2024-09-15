@@ -23,7 +23,7 @@ st.write(df.columns)
 st.subheader("COVID-19 Cases by Area")
 
 # Check if required columns exist in the dataset
-if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existence of chronic diseases - Cardiovascular disease ' in df.columns:
+if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existence of chronic diseases - Cardiovascular disease ' in df.columns and 'Town' in df.columns:
     
     # Sidebar: Select Areas
     areas = df['refArea'].unique()
@@ -43,10 +43,14 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     filtered_df = df[df['refArea'].isin(selected_areas)]
     
     # Aggregate the data by summing up COVID-19 cases per area
-    agg_df = filtered_df.groupby('refArea').agg({
+    agg_df = filtered_df.groupby(['refArea']).agg({
         'Nb of Covid-19 cases': 'sum', 
         'Existence of chronic diseases - Cardiovascular disease ': 'first'
     }).reset_index()
+
+    # Print the structure of the aggregated DataFrame to verify
+    st.write("Aggregated DataFrame:")
+    st.write(agg_df.head())
 
     # Manually add latitude and longitude information
     coords_data = {
@@ -159,62 +163,56 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     if show_pie_chart:
         # Pie Chart: Distribution of Cases by Area (without names on the chart)
         fig_pie = px.pie(agg_df, values='Nb of Covid-19 cases', names='refArea',
-                         title="COVID-19 Case Distribution by Area",
-                         template='plotly_dark',
-                         color_discrete_sequence=px.colors.qualitative.Set1)
+                         title="Distribution of COVID-19 Cases by Area",
+                         template='plotly_dark')
 
-        # Handle percentage display based on checkbox
-        total_cases = agg_df['Nb of Covid-19 cases'].sum()  # Calculate total cases for percentage
+        total_cases = agg_df['Nb of Covid-19 cases'].sum()
         if show_percentage:
-            # Show percentage on hover
-            agg_df['Percentage'] = (agg_df['Nb of Covid-19 cases'] / total_cases) * 100
             hover_text = agg_df.apply(
-                lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
+                lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Nb of Covid-19 cases']/total_cases*100:.2f}%)", axis=1
             )
             fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
         else:
-            # Only display number of cases on hover (no percentage)
             hover_text = agg_df.apply(
                 lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
             )
             fig_pie.update_traces(hovertext=hover_text, textinfo='none')
 
-        # Optional: Explode sections of the pie chart for selected areas
         fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_df['refArea']])
-
-        # Display the Pie Chart
         st.plotly_chart(fig_pie)
 
     # Checkbox for displaying Tree Map
     show_tree_map = st.checkbox("Show Tree Map", value=True)
 
     if show_tree_map:
-        # Tree Map: Distribution of COVID-19 Cases
-        fig_tree = px.treemap(agg_df, path=['refArea'], values='Nb of Covid-19 cases',
-                              color='Existence of chronic diseases - Cardiovascular disease ',
-                              color_discrete_map={
-                                  'Yes': 'red',
-                                  'No': 'blue'
-                              },
-                              title="COVID-19 Cases Distribution by Area",
-                              template='plotly_dark')
+        # Tree Map: Distribution of COVID-19 Cases with Towns
+        try:
+            # Directly use the original dataframe without aggregation for the tree map
+            fig_tree = px.treemap(df, path=['refArea', 'Town'], values='Nb of Covid-19 cases',
+                                  color='Existence of chronic diseases - Cardiovascular disease ',
+                                  color_discrete_map={
+                                      'Yes': 'red',
+                                      'No': 'blue'
+                                  },
+                                  title="COVID-19 Cases Distribution by Area and Town",
+                                  template='plotly_dark')
 
-        # Update layout for better readability
-        fig_tree.update_layout(
-            title_font_size=20,
-            plot_bgcolor='white',
-            paper_bgcolor='white'
-        )
-
-        # Display the Tree Map
-        st.plotly_chart(fig_tree)
+            fig_tree.update_layout(
+                title_font_size=20,
+                plot_bgcolor='white',
+                paper_bgcolor='white'
+            )
+            st.plotly_chart(fig_tree)
+        except ValueError as e:
+            st.error(f"Error creating Tree Map: {e}")
 
     # Additional Metric: Display total number of cases for selected areas
-    total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
+    total_cases_selected = df['Nb of Covid-19 cases'].sum()
     st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
 
 else:
-    st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+    st.error("Columns 'refArea', 'Nb of Covid-19 cases', 'Existence of chronic diseases - Cardiovascular disease ', or 'Town' not found in the dataset.")
+
 
 
 
