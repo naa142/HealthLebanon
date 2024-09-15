@@ -66,7 +66,12 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
         ]
     }
     coords_df = pd.DataFrame(coords_data)
-    
+
+    # Check lengths
+    st.write(f"Length of coords_data lists: {len(coords_data['Governorate'])}")
+    st.write(f"Length of Latitude list: {len(coords_data['Latitude'])}")
+    st.write(f"Length of Longitude list: {len(coords_data['Longitude'])}")
+
     # Merge with original data
     df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
 
@@ -147,6 +152,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
