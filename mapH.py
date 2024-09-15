@@ -30,7 +30,7 @@ geolocator = Nominatim(user_agent="geoapiExercises")
 # Function to get coordinates
 def get_coordinates(location):
     try:
-        loc = geolocator.geocode(location, timeout=10)  # Increase timeout if needed
+        loc = geolocator.geocode(location, timeout=20)  # Increase timeout if needed
         if loc:
             return loc.latitude, loc.longitude
         else:
@@ -72,7 +72,7 @@ if df[['Latitude', 'Longitude']].isnull().any().sum() == 0:
     filtered_data = df[df['refArea'].isin(selected_areas)]
 
     # Add Mapbox access token
-    mapbox_access_token = "c06c01b0cf09497b9cd9eb1ce74372c0"  # Replace this with your Mapbox token
+    mapbox_access_token = "pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMHA4dWN1cTAzbDQya3FzZnNpM2c2ZzgifQ.fYMRblnLF2DytRffA1s51Q"
 
     # Create a scatter mapbox plot
     try:
