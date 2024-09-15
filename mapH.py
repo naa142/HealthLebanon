@@ -47,8 +47,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
             'Mount_Lebanon_Governorate', 'South_Governorate', 'Akkar_Governorate', 
             'North_Governorate', 'Baabda_District', 'Byblos_District', 'Nabatieh_Governorate', 
             'Tyre_District', 'Bsharri_District', 'Sidon_District', 'Batroun_District', 
-            'Zgharta_District', 'Keserwan_District', 'Marjeyoun_District', 'Nabatieh_Governorate', 
-            'Marjeyoun_District', 'Sidon_District', 'North_Governorate', 'Aley_District', 
+            'Zgharta_District', 'Keserwan_District', 'Marjeyoun_District', 'Aley_District', 
             'Beqaa_Governorate', 'Matn_District', 'Miniyeh-Danniyeh_District', 'Bint_Jbeil_District', 
             'Hasbaya_District', 'Zahle_District', 'Western_Beqaa_District'
         ],
@@ -66,13 +65,13 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
         ]
     }
 
-    # Print the lengths of the lists
-    st.write(f"Length of Governorate list: {len(coords_data['Governorate'])}")
-    st.write(f"Length of Latitude list: {len(coords_data['Latitude'])}")
-    st.write(f"Length of Longitude list: {len(coords_data['Longitude'])}")
+    # Convert coords_data to a DataFrame and remove duplicates
+    coords_df = pd.DataFrame(coords_data).drop_duplicates()
 
-    # Create DataFrame from coords_data
-    coords_df = pd.DataFrame(coords_data)
+    # Print the lengths of the lists to verify
+    st.write(f"Length of Governorate list: {len(coords_df['Governorate'])}")
+    st.write(f"Length of Latitude list: {len(coords_df['Latitude'])}")
+    st.write(f"Length of Longitude list: {len(coords_df['Longitude'])}")
 
     # Check the contents of coords_df
     st.write("Coordinates DataFrame:")
@@ -169,6 +168,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
