@@ -68,45 +68,56 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
             35.748880
         ]
     }
+    
+    # Create DataFrame from coordinates data
     coords_df = pd.DataFrame(coords_data)
     
-    # Remove duplicate rows based on 'Governorate'
-    coords_df = coords_df.drop_duplicates(subset=['Governorate'])
+    # Debugging: Check lengths
+    st.write("Length of coordinates data:")
+    st.write(len(coords_df['Governorate']), len(coords_df['Latitude']), len(coords_df['Longitude']))
 
-    # Merge with original data
-    df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
+    # Check if lengths match
+    if len(coords_df['Governorate']) == len(coords_df['Latitude']) == len(coords_df['Longitude']):
+        # Remove duplicate rows based on 'Governorate'
+        coords_df = coords_df.drop_duplicates(subset=['Governorate'])
 
-    # Check if coordinates were added
-    st.write(df.head())
+        # Merge with original data
+        df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
 
-    # Create a scatter mapbox plot
-    if show_map:
-        fig = px.scatter_mapbox(
-            agg_df,
-            lat='Latitude',
-            lon='Longitude',
-            size='Nb of Covid-19 cases',  # Size points based on number of cases
-            color='Existence of chronic diseases - Cardiovascular disease ',  # Color points based on cardiovascular disease
-            hover_name='refArea',  # Show additional data on hover
-            title="COVID-19 Cases by Governorate",
-            mapbox_style="carto-positron",  # Mapbox style; can be customized
-            zoom=6,  # Adjust zoom level
-            center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
-        )
+        # Check if coordinates were added
+        st.write(df.head())
 
-        # Update layout for better readability
-        fig.update_layout(
-            title_font_size=20,
-            plot_bgcolor='white',
-            paper_bgcolor='white',
-            margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
-        )
+        # Create a scatter mapbox plot
+        if show_map:
+            fig = px.scatter_mapbox(
+                agg_df,
+                lat='Latitude',
+                lon='Longitude',
+                size='Nb of Covid-19 cases',  # Size points based on number of cases
+                color='Existence of chronic diseases - Cardiovascular disease ',  # Color points based on cardiovascular disease
+                hover_name='refArea',  # Show additional data on hover
+                title="COVID-19 Cases by Governorate",
+                mapbox_style="carto-positron",  # Mapbox style; can be customized
+                zoom=6,  # Adjust zoom level
+                center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
+            )
 
-        # Add Mapbox access token
-        fig.update_layout(mapbox_accesstoken='pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMG93ZGxqYTBjbTMycXIzanZmNGh5ZjYifQ.Brd1QyD5TYB9DuvtCTwxCw')
+            # Update layout for better readability
+            fig.update_layout(
+                title_font_size=20,
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
+            )
 
-        # Display the map in Streamlit
-        st.plotly_chart(fig)
+            # Add Mapbox access token
+            fig.update_layout(mapbox_accesstoken='pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMG93ZGxqYTBjbTMycXIzanZmNGh5ZjYifQ.Brd1QyD5TYB9DuvtCTwxCw')
+
+            # Display the map in Streamlit
+            st.plotly_chart(fig)
+
+    else:
+        st.error("Mismatch in lengths of coordinates data.")
 
     # Bar Chart: COVID-19 Cases by Area
     fig_bar = px.bar(agg_df, x='refArea', y='Nb of Covid-19 cases',
@@ -127,6 +138,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     # Handle percentage display based on checkbox
     if show_percentage:
         # Show percentage on hover
+        total_cases = agg_df['Nb of Covid-19 cases'].sum()
         agg_df['Percentage'] = (agg_df['Nb of Covid-19 cases'] / total_cases) * 100
         hover_text = agg_df.apply(
             lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
@@ -154,6 +166,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
