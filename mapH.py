@@ -4,6 +4,7 @@ import plotly.express as px
 
 # Set title for the app
 st.title("Health Data in Lebanon")
+st.write("by Nour Abdelghani")
 
 # Load and display the dataset
 data_load_state = st.text('Loading data...')
