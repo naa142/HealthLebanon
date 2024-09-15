@@ -100,98 +100,114 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
     st.write("Merged DataFrame head:")
     st.write(df.head())
 
-    # Create a scatter mapbox plot
-    fig = px.scatter_mapbox(
-        df,
-        lat='Latitude',
-        lon='Longitude',
-        size='Nb of Covid-19 cases',  # Size points based on number of cases
-        color='Existence of chronic diseases - Cardiovascular disease ',  # Color points based on cardiovascular disease status
-        color_discrete_map={
-            'Yes': 'red',
-            'No': 'blue'
-        },
-        hover_name='refArea',  # Show additional data on hover
-        title="COVID-19 Cases by Area",
-        mapbox_style=map_style,  # Mapbox style from sidebar
-        zoom=zoom_level,  # Zoom level from sidebar
-        center={"lat": center_lat, "lon": center_lon}  # Center on location from sidebar
-    )
+    # Checkbox for displaying Map
+    show_map = st.checkbox("Show Map", value=True)
 
-    # Update layout for better readability
-    fig.update_layout(
-        title_font_size=20,
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
-    )
-
-    # Add Mapbox access token
-    fig.update_layout(mapbox_accesstoken='pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMG93ZGxqYTBjbTMycXIzanZmNGh5ZjYifQ.Brd1QyD5TYB9DuvtCTwxCw')
-
-    # Display the map in Streamlit
-    st.plotly_chart(fig)
-
-    # Bar Chart: COVID-19 Cases by Area
-    fig_bar = px.bar(agg_df, x='refArea', y='Nb of Covid-19 cases',
-                     title="COVID-19 Cases by Area",
-                     labels={'refArea': 'Area', 'Nb of Covid-19 cases': 'Number of Cases'},
-                     template='plotly_dark')
-
-    # Add hover info and annotations to the bar chart
-    fig_bar.update_traces(texttemplate='%{y}', textposition='outside', hoverinfo='x+y')
-    fig_bar.update_layout(transition_duration=500)
-
-    # Pie Chart: Distribution of Cases by Area (without names on the chart)
-    fig_pie = px.pie(agg_df, values='Nb of Covid-19 cases', names='refArea',
-                     title="COVID-19 Case Distribution by Area",
-                     template='plotly_dark',
-                     color_discrete_sequence=px.colors.qualitative.Set1)
-
-    # Handle percentage display based on checkbox
-    total_cases = agg_df['Nb of Covid-19 cases'].sum()  # Calculate total cases for percentage
-    if show_percentage:
-        # Show percentage on hover
-        agg_df['Percentage'] = (agg_df['Nb of Covid-19 cases'] / total_cases) * 100
-        hover_text = agg_df.apply(
-            lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
+    if show_map:
+        # Create a scatter mapbox plot
+        fig = px.scatter_mapbox(
+            df,
+            lat='Latitude',
+            lon='Longitude',
+            size='Nb of Covid-19 cases',  # Size points based on number of cases
+            color='Existence of chronic diseases - Cardiovascular disease ',  # Color points based on cardiovascular disease status
+            color_discrete_map={
+                'Yes': 'red',
+                'No': 'blue'
+            },
+            hover_name='refArea',  # Show additional data on hover
+            title="COVID-19 Cases by Area",
+            mapbox_style=map_style,  # Mapbox style from sidebar
+            zoom=zoom_level,  # Zoom level from sidebar
+            center={"lat": center_lat, "lon": center_lon}  # Center on location from sidebar
         )
-        fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
-    else:
-        # Only display number of cases on hover (no percentage)
-        hover_text = agg_df.apply(
-            lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
+
+        # Update layout for better readability
+        fig.update_layout(
+            title_font_size=20,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
         )
-        fig_pie.update_traces(hovertext=hover_text, textinfo='none')
 
-    # Optional: Explode sections of the pie chart for selected areas
-    fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_df['refArea']])
+        # Add Mapbox access token
+        fig.update_layout(mapbox_accesstoken='pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMG93ZGxqYTBjbTMycXIzanZmNGh5ZjYifQ.Brd1QyD5TYB9DuvtCTwxCw')
 
-    # Display the Bar Chart
-    st.plotly_chart(fig_bar)
+        # Display the map in Streamlit
+        st.plotly_chart(fig)
 
-    # Display the Pie Chart
-    st.plotly_chart(fig_pie)
+    # Checkbox for displaying Bar Chart
+    show_bar_chart = st.checkbox("Show Bar Chart", value=True)
 
-    # Tree Map: Distribution of COVID-19 Cases
-    fig_tree = px.treemap(agg_df, path=['refArea'], values='Nb of Covid-19 cases',
-                          color='Existence of chronic diseases - Cardiovascular disease ',
-                          color_discrete_map={
-                              'Yes': 'red',
-                              'No': 'blue'
-                          },
-                          title="COVID-19 Cases Distribution by Area",
-                          template='plotly_dark')
+    if show_bar_chart:
+        # Bar Chart: COVID-19 Cases by Area
+        fig_bar = px.bar(agg_df, x='refArea', y='Nb of Covid-19 cases',
+                         title="COVID-19 Cases by Area",
+                         labels={'refArea': 'Area', 'Nb of Covid-19 cases': 'Number of Cases'},
+                         template='plotly_dark')
 
-    # Update layout for better readability
-    fig_tree.update_layout(
-        title_font_size=20,
-        plot_bgcolor='white',
-        paper_bgcolor='white'
-    )
+        # Add hover info and annotations to the bar chart
+        fig_bar.update_traces(texttemplate='%{y}', textposition='outside', hoverinfo='x+y')
+        fig_bar.update_layout(transition_duration=500)
 
-    # Display the Tree Map
-    st.plotly_chart(fig_tree)
+        # Display the Bar Chart
+        st.plotly_chart(fig_bar)
+
+    # Checkbox for displaying Pie Chart
+    show_pie_chart = st.checkbox("Show Pie Chart", value=True)
+
+    if show_pie_chart:
+        # Pie Chart: Distribution of Cases by Area (without names on the chart)
+        fig_pie = px.pie(agg_df, values='Nb of Covid-19 cases', names='refArea',
+                         title="COVID-19 Case Distribution by Area",
+                         template='plotly_dark',
+                         color_discrete_sequence=px.colors.qualitative.Set1)
+
+        # Handle percentage display based on checkbox
+        total_cases = agg_df['Nb of Covid-19 cases'].sum()  # Calculate total cases for percentage
+        if show_percentage:
+            # Show percentage on hover
+            agg_df['Percentage'] = (agg_df['Nb of Covid-19 cases'] / total_cases) * 100
+            hover_text = agg_df.apply(
+                lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
+            )
+            fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
+        else:
+            # Only display number of cases on hover (no percentage)
+            hover_text = agg_df.apply(
+                lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
+            )
+            fig_pie.update_traces(hovertext=hover_text, textinfo='none')
+
+        # Optional: Explode sections of the pie chart for selected areas
+        fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_df['refArea']])
+
+        # Display the Pie Chart
+        st.plotly_chart(fig_pie)
+
+    # Checkbox for displaying Tree Map
+    show_tree_map = st.checkbox("Show Tree Map", value=True)
+
+    if show_tree_map:
+        # Tree Map: Distribution of COVID-19 Cases
+        fig_tree = px.treemap(agg_df, path=['refArea'], values='Nb of Covid-19 cases',
+                              color='Existence of chronic diseases - Cardiovascular disease ',
+                              color_discrete_map={
+                                  'Yes': 'red',
+                                  'No': 'blue'
+                              },
+                              title="COVID-19 Cases Distribution by Area",
+                              template='plotly_dark')
+
+        # Update layout for better readability
+        fig_tree.update_layout(
+            title_font_size=20,
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+
+        # Display the Tree Map
+        st.plotly_chart(fig_tree)
 
     # Additional Metric: Display total number of cases for selected areas
     total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
@@ -199,6 +215,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
