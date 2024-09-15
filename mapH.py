@@ -31,6 +31,13 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
     # Sidebar: Toggle percentage display on pie chart
     show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
+    
+    # Sidebar: Map settings
+    st.sidebar.header("Map Settings")
+    map_style = st.sidebar.selectbox("Select Map Style:", ["carto-positron", "open-street-map", "basic", "white-bg"])
+    zoom_level = st.sidebar.slider("Zoom Level:", min_value=1, max_value=15, value=6)
+    center_lat = st.sidebar.slider("Map Center Latitude:", min_value=-90.0, max_value=90.0, value=33.8938)
+    center_lon = st.sidebar.slider("Map Center Longitude:", min_value=-180.0, max_value=180.0, value=35.5018)
 
     # Filter the dataset based on selected areas
     filtered_df = df[df['refArea'].isin(selected_areas)]
@@ -106,9 +113,9 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
         },
         hover_name='refArea',  # Show additional data on hover
         title="COVID-19 Cases by Area",
-        mapbox_style="carto-positron",  # Mapbox style; can be customized
-        zoom=6,  # Adjust zoom level
-        center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
+        mapbox_style=map_style,  # Mapbox style from sidebar
+        zoom=zoom_level,  # Zoom level from sidebar
+        center={"lat": center_lat, "lon": center_lon}  # Center on location from sidebar
     )
 
     # Update layout for better readability
@@ -192,6 +199,7 @@ if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existen
 
 else:
     st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
+
 
 
 
