@@ -1,175 +1,181 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from geopy.geocoders import Nominatim
 
 # Set title for the app
 st.title("Health Data in Lebanon")
 
-# Load the dataset
+# Load and display the dataset
 data_load_state = st.text('Loading data...')
-url = "https://raw.githubusercontent.com/naa142/HealthLebanon/main/4a0321bc971cc2f793d3367fd0b55a34_20240905_102823.csv"
+url = r"C:\Users\Nour Abd El Ghani\Downloads\4a0321bc971cc2f793d3367fd0b55a34_20240905_102823.csv"
 df = pd.read_csv(url)
-data_load_state.text("Data loaded!")
 
 # Option to show the dataset
 if st.checkbox('Show data'):
     st.write("Dataset Overview:")
     st.dataframe(df)
 
-# Rename columns for ease of use
-df.rename(columns={
-    'Existence of chronic diseases - Diabetes ': 'Diabetes',
-    'Existence of chronic diseases - Cardiovascular disease ': 'Cardiovascular Disease',
-    'Existence of chronic diseases - Hypertension': 'Hypertension'
-}, inplace=True)
+# Check column names
+st.write("Column names in the dataset:")
+st.write(df.columns)
 
-# Fallback coordinates for Lebanese districts (dictionary of known locations)
-fallback_coords = {
-    "Bsharri_District": (34.2500, 36.0100),
-    "Sidon_District": (33.5631, 35.3683),
-    "Batroun_District": (34.2553, 35.6589),
-    "Zgharta_District": (34.4000, 35.9500),
-    "Keserwan_District": (33.9800, 35.7100),
-    "Marjeyoun_District": (33.3556, 35.5919),
-    "Aley_District": (33.8100, 35.5800),
-    "Beqaa_Governorate": (33.8547, 35.9058),
-    "Matn_District": (33.8330, 35.5500),
-    "Miniyeh–Danniyeh_District": (34.4829, 35.9256),
-    "Bint_Jbeil_District": (33.1172, 35.4442),
-    "Hasbaya_District": (33.3981, 35.6847),
-    "Zahlé_District": (33.8495, 35.9042),
-    "Western_Beqaa_District": (33.7000, 35.8000),
-    "Baalbek-Hermel_Governorate": (34.0200, 36.2160),
-    "Tripoli_District,_Lebanon": (34.4342, 35.8362),
-    "Hermel_District": (34.3900, 36.3900)
-}
+# Subheader for COVID-19 cases by area
+st.subheader("COVID-19 Cases by Area")
 
-# Create a function to return fallback coordinates
-def get_fallback_coordinates(district):
-    return fallback_coords.get(district, (33.8938, 35.5018))  # Default to Beirut if not found
+# Check if required columns exist in the dataset
+if 'refArea' in df.columns and 'Nb of Covid-19 cases' in df.columns and 'Existence of chronic diseases - Cardiovascular disease ' in df.columns:
+    
+    # Sidebar: Select Areas
+    areas = df['refArea'].unique()
+    selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
 
-# Apply fallback coordinates to the dataset
-df['Latitude'], df['Longitude'] = zip(*df['refArea'].apply(get_fallback_coordinates))
+    # Sidebar: Toggle percentage display on pie chart
+    show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
 
-# Sidebar: Select Areas
-areas = df['refArea'].unique()
-selected_areas = st.sidebar.multiselect("Select Areas:", areas, default=areas)
+    # Filter the dataset based on selected areas
+    filtered_df = df[df['refArea'].isin(selected_areas)]
+    
+    # Aggregate the data by summing up COVID-19 cases per area
+    agg_df = filtered_df.groupby('refArea').agg({'Nb of Covid-19 cases': 'sum', 'Existence of chronic diseases - Cardiovascular disease ': 'first'}).reset_index()
 
-# Sidebar: Toggle percentage display on pie chart
-show_percentage = st.sidebar.checkbox("Show percentage on pie chart", value=False)
+    # Calculate the total cases
+    total_cases = agg_df['Nb of Covid-19 cases'].sum()
 
-# Filter the dataset based on selected areas
-filtered_data = df[df['refArea'].isin(selected_areas)]
+    # Rename columns for ease of use
+    df.rename(columns={
+        'Existence of chronic diseases - Diabetes ': 'Diabetes',
+        'Existence of chronic diseases - Cardiovascular disease ': 'Cardiovascular Disease',
+        'Existence of chronic diseases - Hypertension': 'Hypertension'
+    }, inplace=True)
 
-# Add Mapbox access token
-mapbox_access_token = "pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMHA4dWN1cTAzbDQya3FzZnNpM2c2ZzgifQ.fYMRblnLF2DytRffA1s51Q"
+    # Manually add latitude and longitude information
+    coords_data = {
+        'Governorate': [
+            'Mount_Lebanon_Governorate', 'South_Governorate', 'Akkar_Governorate', 
+            'North_Governorate', 'Baabda_District'
+        ],
+        'Latitude': [33.737305, 33.340319, 34.555501, 34.331770, 33.844179],
+        'Longitude': [35.599890, 35.303844, 36.201645, 35.943696, 35.703280]
+    }
+    coords_df = pd.DataFrame(coords_data)
+    
+    # Merge with original data
+    df = df.merge(coords_df, left_on='refArea', right_on='Governorate', how='left')
 
-# Create a scatter mapbox plot
-try:
-    fig_map = px.scatter_mapbox(
-        filtered_data,
+    # Check if coordinates were added
+    st.write(df.head())
+
+    # Create a scatter mapbox plot
+    fig = px.scatter_mapbox(
+        df,
         lat='Latitude',
         lon='Longitude',
-        color='Diabetes',  # Color points based on diabetes status (Yes/No)
-        size='Nb of Covid-19 cases',  # Size points based on the number of COVID-19 cases
+        color='Diabetes',  # Optional: Color points based on another variable
+        size='Nb of Covid-19 cases',  # Optional: Size points based on another variable
         hover_name='refArea',  # Show additional data on hover
-        hover_data={
-            'Nb of Covid-19 cases': True,
-            'Diabetes': True,
-            'Existence of chronic diseases - Cardiovascular disease ': True,  # Correct column name
-            'Hypertension': True
-        },
-        title="COVID-19 Cases by District and Diabetes Status",
-        mapbox_style="carto-positron",  # Mapbox style
-        zoom=8,  # Adjust zoom level for Lebanon
-        center={"lat": 33.8938, "lon": 35.5018}  # Center on Lebanon
+        title="COVID-19 Cases by Governorate",
+        mapbox_style="carto-positron",  # Mapbox style; can be customized
+        zoom=6,  # Adjust zoom level
+        center={"lat": 33.8938, "lon": 35.5018}  # Center on a specific location
     )
 
-    # Update the layout with your Mapbox access token
-    fig_map.update_layout(mapbox_accesstoken=mapbox_access_token)
+    # Update layout for better readability
+    fig.update_layout(
+        title_font_size=20,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        margin=dict(l=0, r=0, t=50, b=0)  # Adjust margins if needed
+    )
+
+    # Add Mapbox access token
+    fig.update_layout(mapbox_accesstoken='pk.eyJ1IjoibmFhMTQyIiwiYSI6ImNtMG93ZGxqYTBjbTMycXIzanZmNGh5ZjYifQ.Brd1QyD5TYB9DuvtCTwxCw')
 
     # Display the map in Streamlit
-    st.plotly_chart(fig_map)
-except ValueError as e:
-    st.error(f"ValueError: {e}")
+    st.plotly_chart(fig)
 
-# Aggregate data for bar and pie charts
-agg_data = filtered_data.groupby('refArea').agg({
-    'Nb of Covid-19 cases': 'sum',
-    'Diabetes': 'first'
-}).reset_index()
+    # Bar Chart: COVID-19 Cases by Area
+    fig_bar = px.bar(agg_df, x='refArea', y='Nb of Covid-19 cases',
+                     title="COVID-19 Cases by Area",
+                     labels={'refArea': 'Area', 'Nb of Covid-19 cases': 'Number of Cases'},
+                     template='plotly_dark')
 
-# Bar Chart: COVID-19 Cases by Area
-fig_bar = px.bar(
-    agg_data,
-    x='refArea',
-    y='Nb of Covid-19 cases',
-    title="COVID-19 Cases by Area",
-    labels={'refArea': 'Area', 'Nb of Covid-19 cases': 'Number of Cases'},
-    template='plotly_dark'
-)
-fig_bar.update_traces(texttemplate='%{y}', textposition='outside', hoverinfo='x+y')
-fig_bar.update_layout(transition_duration=500)
+    # Add hover info and annotations to the bar chart
+    fig_bar.update_traces(texttemplate='%{y}', textposition='outside', hoverinfo='x+y')
+    fig_bar.update_layout(transition_duration=500)
 
-# Pie Chart: Distribution of Cases by Area
-fig_pie = px.pie(
-    agg_data,
-    values='Nb of Covid-19 cases',
-    names='refArea',
-    title="COVID-19 Case Distribution by Area",
-    template='plotly_dark',
-    color_discrete_sequence=px.colors.qualitative.Set1
-)
+    # Pie Chart: Distribution of Cases by Area (without names on the chart)
+    fig_pie = px.pie(agg_df, values='Nb of Covid-19 cases', names='refArea',
+                     title="COVID-19 Case Distribution by Area",
+                     template='plotly_dark',
+                     color_discrete_sequence=px.colors.qualitative.Set1)
 
-# Handle percentage display based on checkbox
-if show_percentage:
-    total_cases = agg_data['Nb of Covid-19 cases'].sum()
-    agg_data['Percentage'] = (agg_data['Nb of Covid-19 cases'] / total_cases) * 100
-    hover_text = agg_data.apply(
-        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
-    )
-    fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
+    # Handle percentage display based on checkbox
+    if show_percentage:
+        # Show percentage on hover
+        agg_df['Percentage'] = (agg_df['Nb of Covid-19 cases'] / total_cases) * 100
+        hover_text = agg_df.apply(
+            lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases ({row['Percentage']:.2f}%)", axis=1
+        )
+        fig_pie.update_traces(hovertext=hover_text, textinfo='percent')
+    else:
+        # Only display number of cases on hover (no percentage)
+        hover_text = agg_df.apply(
+            lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
+        )
+        fig_pie.update_traces(hovertext=hover_text, textinfo='none')
+
+    # Optional: Explode sections of the pie chart for selected areas
+    fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_df['refArea']])
+
+    # Display the Bar Chart
+    st.plotly_chart(fig_bar)
+
+    # Display the Pie Chart
+    st.plotly_chart(fig_pie)
+
+    # Additional Metric: Display total number of cases for selected areas
+    total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
+    st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
+
 else:
-    hover_text = agg_data.apply(
-        lambda row: f"{row['refArea']}: {row['Nb of Covid-19 cases']} cases", axis=1
-    )
-    fig_pie.update_traces(hovertext=hover_text, textinfo='none')
-
-# Optional: Explode sections of the pie chart for selected areas
-fig_pie.update_traces(pull=[0.1 if area in selected_areas else 0 for area in agg_data['refArea']])
-
-# Display the Bar Chart
-st.plotly_chart(fig_bar)
-
-# Display the Pie Chart
-st.plotly_chart(fig_pie)
+    st.error("Columns 'refArea', 'Nb of Covid-19 cases', or 'Existence of chronic diseases - Cardiovascular disease ' not found in the dataset.")
 
 # Treemap: COVID-19 Cases by Town in each Area and Diabetes Status
-if 'Town' in df.columns and 'Diabetes' in df.columns:
+if 'Town' in df.columns and 'Existence of chronic diseases - Diabetes ' in df.columns:  # Note the space after 'Diabetes'
     
     # Filter data for treemap and remove rows where 'Nb of Covid-19 cases' is 0 or missing
-    treemap_data = filtered_data[filtered_data['Nb of Covid-19 cases'] > 0].copy()
-    
+    treemap_df = filtered_df[filtered_df['Nb of Covid-19 cases'] > 0].copy()
+
     # Check if there are still rows left after filtering
-    if not treemap_data.empty:
+    if not treemap_df.empty:
         # Group and aggregate the data
-        treemap_data = treemap_data.groupby(['refArea', 'Town', 'Diabetes']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
+        treemap_df = treemap_df.groupby(['refArea', 'Town', 'Existence of chronic diseases - Diabetes ']).agg({'Nb of Covid-19 cases': 'sum'}).reset_index()
 
         # Create Treemap
         fig_treemap = px.treemap(
-            treemap_data,
-            path=['refArea', 'Town', 'Diabetes'],
+            treemap_df,
+            path=['refArea', 'Town', 'Existence of chronic diseases - Diabetes '],
             values='Nb of Covid-19 cases',
-            color='Diabetes',
+            color='Existence of chronic diseases - Diabetes ',
             color_discrete_map={'Yes': 'red', 'No': 'green'},
             title="COVID-19 Cases by Town, Area, and Diabetes Status",
             template='plotly_dark'
         )
 
-        # Display the treemap
+        # Set all districts to have a white background
+        fig_treemap.update_traces(root_color='white')
+
+        # Display the Treemap
         st.plotly_chart(fig_treemap)
+    
     else:
-        st.write("No data available for the Treemap.")
+        st.warning("No COVID-19 cases available for the selected areas.")
+
+    # Additional Metric: Display total number of cases for selected areas
+    total_cases_selected = agg_df['Nb of Covid-19 cases'].sum()
+    st.write(f"Total cases in selected areas: **{total_cases_selected:.2f}**")
+
 
 
 
