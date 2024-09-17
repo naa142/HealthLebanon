@@ -16,9 +16,6 @@ if st.checkbox('Show data', key='show_data'):
     st.write("Dataset Overview:")
     st.dataframe(df)
 
-# Check column names
-st.write("Column names in the dataset:")
-st.write(df.columns)
 
 # Sidebar for selecting visualization
 st.sidebar.header("Select Visualization")
